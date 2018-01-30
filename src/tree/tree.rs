@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use super::super::{EventManager, Transaction, View};
+use super::super::{view_id, EventManager, Transaction, View};
 use super::{ComponentNode, Node, Nodes, ViewNode};
 
 static ROOT_ID: AtomicUsize = AtomicUsize::new(0);
@@ -8,7 +8,7 @@ static ROOT_ID: AtomicUsize = AtomicUsize::new(0);
 pub struct Tree {
     root_index: usize,
     root_id: String,
-    nodes: Nodes,
+    pub nodes: Nodes,
 }
 
 impl Tree {
@@ -31,17 +31,33 @@ impl Tree {
     pub fn render(&self, view: View, event_manager: &mut EventManager) -> Transaction {
         let mut transaction = Transaction::new();
 
-        let id = self.root_id.clone();
-        let component = view.component().map(|c| c.clone());
+        Self::mount_view(
+            &self.nodes,
+            self.root_id.clone(),
+            view,
+            &mut transaction,
+            event_manager,
+        );
 
-        let mut node: Box<Node> = if let Some(component) = component {
+        transaction
+    }
+
+    pub(super) fn mount_view(
+        nodes: &Nodes,
+        id: String,
+        view: View,
+        transaction: &mut Transaction,
+        event_manager: &mut EventManager,
+    ) -> View {
+        let mut node: Box<Node> = if let Some(component) = view.component().map(|c| c.clone()) {
             Box::new(ComponentNode::new(id.clone(), "".into(), view, component))
         } else {
             Box::new(ViewNode::new(id.clone(), "".into(), view))
         };
 
-        node.mount(&self.nodes, &mut transaction, event_manager);
+        let rendered_view = node.mount(nodes, transaction, event_manager);
+        nodes.lock().insert(id, node);
 
-        transaction
+        rendered_view
     }
 }

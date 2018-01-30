@@ -1,10 +1,11 @@
-use super::super::{EventManager, Transaction, View};
-use super::{Node, Nodes};
+use super::super::{view_id, EventManager, Transaction, View};
+use super::{Node, Nodes, Tree};
 
 pub struct ViewNode {
     id: String,
     parent_id: String,
     view: View,
+    rendered_view: Option<View>,
 }
 
 impl Node for ViewNode {
@@ -22,7 +23,19 @@ impl Node for ViewNode {
         nodes: &Nodes,
         transaction: &mut Transaction,
         event_manager: &mut EventManager,
-    ) {
+    ) -> View {
+        let mut rendered_view = self.rendered_view();
+
+        if let Some(children) = rendered_view.children_mut() {
+            children.iter_mut().enumerate().for_each(|(index, child)| {
+                let child_id = view_id(&self.id, child.key(), index);
+                *child =
+                    Tree::mount_view(nodes, child_id, child.clone(), transaction, event_manager);
+            });
+        }
+
+        self.rendered_view = Some(rendered_view.clone());
+        rendered_view
     }
 }
 
@@ -33,6 +46,11 @@ impl ViewNode {
             id: id,
             parent_id: parent_id,
             view: view,
+            rendered_view: None,
         }
+    }
+    #[inline]
+    fn rendered_view(&self) -> View {
+        self.view.clone()
     }
 }

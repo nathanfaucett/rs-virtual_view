@@ -1,9 +1,10 @@
 use std::sync::Arc;
 use std::fmt;
 
-use super::super::prop_to_string_take;
-use super::{Children, Component, Props, ViewKind};
+use super::super::{prop_to_string_take, Props};
+use super::{Children, Component, ViewKind};
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum View {
     Text(String),
     Data {
@@ -12,77 +13,6 @@ pub enum View {
         props: Props,
         children: Children,
     },
-}
-
-impl fmt::Debug for View {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            &View::Text(ref string) => write!(f, "Text({})", string),
-            &View::Data {
-                ref kind,
-                ref key,
-                ref props,
-                ref children,
-            } => f.debug_struct("Data")
-                .field("kind", kind)
-                .field("key", key)
-                .field("props", props)
-                .field("children", children)
-                .finish(),
-        }
-    }
-}
-
-impl Clone for View {
-    #[inline]
-    fn clone(&self) -> Self {
-        match self {
-            &View::Text(ref string) => View::Text(string.clone()),
-            &View::Data {
-                ref kind,
-                ref key,
-                ref props,
-                ref children,
-                ..
-            } => View::Data {
-                kind: kind.clone(),
-                key: key.clone(),
-                props: props.clone(),
-                children: children.clone(),
-            },
-        }
-    }
-}
-
-impl PartialEq for View {
-    #[inline]
-    fn eq(&self, other: &View) -> bool {
-        match self {
-            &View::Text(ref lhs_string) => match other {
-                &View::Text(ref rhs_string) => lhs_string == rhs_string,
-                &View::Data { .. } => false,
-            },
-            &View::Data {
-                kind: ref lhs_kind,
-                key: ref lhs_key,
-                props: ref lhs_props,
-                children: ref lhs_children,
-                ..
-            } => match self {
-                &View::Text(_) => false,
-                &View::Data {
-                    kind: ref rhs_kind,
-                    key: ref rhs_key,
-                    props: ref rhs_props,
-                    children: ref rhs_children,
-                } => {
-                    lhs_kind == rhs_kind && lhs_key == rhs_key && lhs_props == rhs_props
-                        && lhs_children == rhs_children
-                }
-            },
-        }
-    }
 }
 
 impl View {
@@ -121,6 +51,21 @@ impl View {
             key: None,
             props: Props::default(),
             children: Children::new(),
+        }
+    }
+
+    #[inline]
+    pub fn is_text(&self) -> bool {
+        match self {
+            &View::Text(_) => true,
+            &View::Data { .. } => false,
+        }
+    }
+    #[inline]
+    pub fn is_data(&self) -> bool {
+        match self {
+            &View::Text(_) => false,
+            &View::Data { .. } => true,
         }
     }
 

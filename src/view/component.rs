@@ -1,7 +1,7 @@
 use std::any::Any;
 
-use super::super::Updater;
-use super::{Children, Props, View};
+use super::super::{Props, Updater};
+use super::{Children, View};
 
 pub trait Component: 'static + Any {
     fn render(&self, updater: Updater, state: &Props, props: &Props, children: &Children) -> View;
@@ -12,7 +12,7 @@ pub trait Component: 'static + Any {
     }
 
     #[inline]
-    fn initial_state(&self) -> Props {
+    fn initial_state(&self, _props: &Props) -> Props {
         Props::default()
     }
 

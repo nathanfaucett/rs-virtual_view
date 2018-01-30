@@ -11,8 +11,9 @@ impl Component for Button {
         "Button"
     }
     fn render(&self, updater: Updater, state: &Props, props: &Props, children: &Children) -> View {
-        let class = props.get("class").map(|c| c.clone()).unwrap_or("".into());
-        View::new("button".into(), Props::default(), vec![])
+        let mut props = props.clone();
+        props.insert("class", "Button");
+        View::new("button".into(), props, vec![])
     }
 }
 
@@ -25,10 +26,16 @@ impl Component for Counter {
     fn name(&self) -> &'static str {
         "Counter"
     }
+    #[inline]
+    fn initial_state(&self, props: &Props) -> Props {
+        let mut state = Props::default();
+        state.insert("count", props.take("count").unwrap_or(0.into()));
+        state
+    }
     fn render(&self, updater: Updater, state: &Props, props: &Props, children: &Children) -> View {
         let mut add = View::new_component(Button);
         add.props_mut().unwrap().insert(
-            "click".into(),
+            "click",
             Prop::Function(Arc::new(move |e| {
                 on_add_count(updater, e);
             })),
@@ -37,14 +44,14 @@ impl Component for Counter {
 
         let mut sub = View::new_component(Button);
         sub.props_mut().unwrap().insert(
-            "click".into(),
+            "click",
             Prop::Function(Arc::new(move |e| {
                 on_sub_count(updater, e);
             })),
         );
         sub.children_mut().unwrap().push("Sub".into());
 
-        let count = props.get("count").map(|c| c.clone()).unwrap_or(0.into());
+        let count = state.get("count").map(|c| c.clone()).unwrap_or(0.into());
         let text = View::new(
             "p".into(),
             Props::default(),
@@ -61,8 +68,16 @@ fn test_component() {
     let mut event_manager = EventManager::new();
 
     let mut view = View::new_component(Counter);
-    view.props_mut().unwrap().insert("count".into(), 0.into());
+    view.props_mut().unwrap().insert("count", 0);
 
     tree.render(view, &mut event_manager);
+    println!(
+        "{:?}",
+        tree.nodes
+            .lock()
+            .iter()
+            .map(|(id, _)| id)
+            .collect::<Vec<_>>()
+    );
     assert!(false);
 }
