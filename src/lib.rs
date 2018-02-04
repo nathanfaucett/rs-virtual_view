@@ -8,6 +8,7 @@ extern crate serde_json;
 
 mod diff;
 mod event_manager;
+#[macro_use]
 mod prop;
 mod transaction;
 mod tree;

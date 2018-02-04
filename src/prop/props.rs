@@ -2,6 +2,7 @@ use fnv::FnvHashMap;
 
 use std::ops::{Deref, DerefMut};
 use std::hash::{Hash, Hasher};
+use std::iter::FromIterator;
 
 use super::Prop;
 
@@ -85,15 +86,31 @@ impl<'a> IntoIterator for &'a mut Props {
     }
 }
 
-impl<T> ::std::iter::FromIterator<(String, T)> for Props
+impl<K, V> From<FnvHashMap<K, V>> for Props
 where
-    T: Into<Prop>,
+    K: Eq + Hash + ToString,
+    V: Into<Prop>,
 {
     #[inline(always)]
-    fn from_iter<I: IntoIterator<Item = (String, T)>>(iter: I) -> Self {
+    fn from(map: FnvHashMap<K, V>) -> Self {
+        let mut m = Props::new();
+        for (k, v) in map {
+            m.insert(k, v);
+        }
+        m
+    }
+}
+
+impl<K, V> FromIterator<(K, V)> for Props
+where
+    K: Eq + Hash + ToString,
+    V: Into<Prop>,
+{
+    #[inline(always)]
+    fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
         let mut m = Props::new();
         for (k, v) in iter {
-            m.insert(k, v.into());
+            m.insert(k, v);
         }
         m
     }

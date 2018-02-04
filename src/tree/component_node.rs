@@ -31,6 +31,10 @@ impl Node for ComponentNode {
     ) -> View {
         let mut rendered_view = self.rendered_view();
 
+        if let Some(props) = rendered_view.props() {
+            Tree::mount_props_events(&self.id, props, transaction, event_manager);
+        }
+
         if let Some(children) = rendered_view.children_mut() {
             children.iter_mut().enumerate().for_each(|(index, child)| {
                 if child.is_data() {
@@ -48,6 +52,18 @@ impl Node for ComponentNode {
         }
 
         self.rendered_view = Some(rendered_view.clone());
+        rendered_view
+    }
+
+    #[inline]
+    fn update(
+        &mut self,
+        view: View,
+        nodes: &Nodes,
+        transaction: &mut Transaction,
+        event_manager: &mut EventManager,
+    ) -> View {
+        let mut rendered_view = self.rendered_view();
         rendered_view
     }
 }

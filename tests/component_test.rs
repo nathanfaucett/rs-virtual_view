@@ -35,7 +35,7 @@ impl Component for Counter {
     fn render(&self, updater: Updater, state: &Props, props: &Props, children: &Children) -> View {
         let mut add = View::new_component(Button);
         add.props_mut().unwrap().insert(
-            "click",
+            "onclick",
             Prop::Function(Arc::new(move |e| {
                 on_add_count(updater, e);
             })),
@@ -44,7 +44,7 @@ impl Component for Counter {
 
         let mut sub = View::new_component(Button);
         sub.props_mut().unwrap().insert(
-            "click",
+            "onclick",
             Prop::Function(Arc::new(move |e| {
                 on_sub_count(updater, e);
             })),
@@ -70,14 +70,7 @@ fn test_component() {
     let mut view = View::new_component(Counter);
     view.props_mut().unwrap().insert("count", 0);
 
-    tree.render(view, &mut event_manager);
-    println!(
-        "{:?}",
-        tree.nodes
-            .lock()
-            .iter()
-            .map(|(id, _)| id)
-            .collect::<Vec<_>>()
-    );
-    assert!(false);
+    let transaction = tree.render(view, &mut event_manager);
+    println!("{:#?}", transaction);
+    //assert!(false);
 }

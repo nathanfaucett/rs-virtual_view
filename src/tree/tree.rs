@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use super::super::{view_id, EventManager, Transaction, View};
+use super::super::{view_id, EventManager, Props, Transaction, View};
 use super::{ComponentNode, Node, Nodes, ViewNode};
 
 static ROOT_ID: AtomicUsize = AtomicUsize::new(0);
@@ -8,7 +8,7 @@ static ROOT_ID: AtomicUsize = AtomicUsize::new(0);
 pub struct Tree {
     root_index: usize,
     root_id: String,
-    pub nodes: Nodes,
+    nodes: Nodes,
 }
 
 impl Tree {
@@ -31,15 +31,32 @@ impl Tree {
     pub fn render(&self, view: View, event_manager: &mut EventManager) -> Transaction {
         let mut transaction = Transaction::new();
 
-        Self::mount_view(
+        let rendered_view = Self::mount_view(
             &self.nodes,
             self.root_id.clone(),
             view,
             &mut transaction,
             event_manager,
         );
+        transaction.mount(&self.root_id, rendered_view.into());
 
         transaction
+    }
+
+    pub(super) fn mount_props_events(
+        id: &str,
+        props: &Props,
+        transaction: &mut Transaction,
+        event_manager: &mut EventManager,
+    ) {
+        for (k, v) in props {
+            if k.starts_with("on") {
+                if let Some(f) = v.function() {
+                    transaction.add_event(id, k);
+                    event_manager.add(id, k, f.clone());
+                }
+            }
+        }
     }
 
     pub(super) fn mount_view(

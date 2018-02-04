@@ -11,7 +11,7 @@ use super::{Array, Props};
 #[derive(Clone)]
 pub enum Prop {
     Null,
-    Bool(bool),
+    Boolean(bool),
     Number(Number),
     String(String),
     Function(Function),
@@ -31,9 +31,9 @@ impl Prop {
         }
     }
     #[inline]
-    pub fn bool(&self) -> Option<bool> {
+    pub fn boolean(&self) -> Option<bool> {
         match self {
-            &Prop::Bool(v) => Some(v),
+            &Prop::Boolean(v) => Some(v),
             _ => None,
         }
     }
@@ -72,6 +72,56 @@ impl Prop {
             _ => None,
         }
     }
+
+    #[inline]
+    pub fn is_null(&self) -> bool {
+        match self {
+            &Prop::Null => true,
+            _ => false,
+        }
+    }
+    #[inline]
+    pub fn is_boolean(&self) -> bool {
+        match self {
+            &Prop::Boolean(_) => true,
+            _ => false,
+        }
+    }
+    #[inline]
+    pub fn is_number(&self) -> bool {
+        match self {
+            &Prop::Number(_) => true,
+            _ => false,
+        }
+    }
+    #[inline]
+    pub fn is_string(&self) -> bool {
+        match self {
+            &Prop::String(_) => true,
+            _ => false,
+        }
+    }
+    #[inline]
+    pub fn is_function(&self) -> bool {
+        match self {
+            &Prop::Function(_) => true,
+            _ => false,
+        }
+    }
+    #[inline]
+    pub fn is_array(&self) -> bool {
+        match self {
+            &Prop::Array(_) => true,
+            _ => false,
+        }
+    }
+    #[inline]
+    pub fn is_map(&self) -> bool {
+        match self {
+            &Prop::Map(_) => true,
+            _ => false,
+        }
+    }
 }
 
 impl From<()> for Prop {
@@ -84,7 +134,7 @@ impl From<()> for Prop {
 impl From<bool> for Prop {
     #[inline]
     fn from(value: bool) -> Self {
-        Prop::Bool(value)
+        Prop::Boolean(value)
     }
 }
 
@@ -149,7 +199,7 @@ impl From<Value> for Prop {
     fn from(value: Value) -> Self {
         match value {
             Value::Null => Prop::Null,
-            Value::Bool(v) => Prop::Bool(v),
+            Value::Bool(v) => Prop::Boolean(v),
             Value::Number(v) => Prop::Number(v.as_f64().unwrap_or(0.0)),
             Value::String(v) => Prop::String(v),
             Value::Array(a) => Prop::Array(a.into_iter().map(Into::<Prop>::into).collect()),
@@ -167,7 +217,7 @@ impl<'a> From<&'a Value> for Prop {
     fn from(value: &'a Value) -> Self {
         match value {
             &Value::Null => Prop::Null,
-            &Value::Bool(ref v) => Prop::Bool(*v),
+            &Value::Bool(ref v) => Prop::Boolean(*v),
             &Value::Number(ref v) => Prop::Number(v.as_f64().unwrap_or(0.0)),
             &Value::String(ref v) => Prop::String(v.clone()),
             &Value::Array(ref a) => Prop::Array(a.into_iter().map(Into::<Prop>::into).collect()),
@@ -185,7 +235,7 @@ impl fmt::Debug for Prop {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             &Prop::Null => write!(f, "null"),
-            &Prop::Bool(ref v) => write!(f, "{:?}", v),
+            &Prop::Boolean(ref v) => write!(f, "{:?}", v),
             &Prop::Number(ref v) => write!(f, "{:?}", v),
             &Prop::String(ref v) => write!(f, "{:?}", v),
             &Prop::Function(_) => write!(f, "Fn(&mut Event)"),
@@ -200,7 +250,7 @@ impl fmt::Display for Prop {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             &Prop::Null => write!(f, "null"),
-            &Prop::Bool(ref v) => write!(f, "{}", v),
+            &Prop::Boolean(ref v) => write!(f, "{}", v),
             &Prop::Number(ref v) => write!(f, "{}", v),
             &Prop::String(ref v) => write!(f, "{}", v),
             &Prop::Function(_) => write!(f, "Fn(&mut Event)"),
@@ -265,8 +315,8 @@ impl PartialEq for Prop {
                 &Prop::Null => true,
                 _ => false,
             },
-            &Prop::Bool(ref a) => match other {
-                &Prop::Bool(ref b) => a == b,
+            &Prop::Boolean(ref a) => match other {
+                &Prop::Boolean(ref b) => a == b,
                 _ => false,
             },
             &Prop::Number(ref a) => match other {
@@ -301,7 +351,7 @@ impl Hash for Prop {
     {
         match self {
             &Prop::Null => ().hash(state),
-            &Prop::Bool(ref v) => v.hash(state),
+            &Prop::Boolean(ref v) => v.hash(state),
             &Prop::Number(ref v) => unsafe { mem::transmute::<f64, u64>(*v) }.hash(state),
             &Prop::String(ref v) => v.hash(state),
             &Prop::Function(ref v) => (&**v as *const _ as *const usize as usize).hash(state),
@@ -320,7 +370,7 @@ impl Hash for Prop {
 pub fn prop_to_json(prop: &Prop) -> Value {
     match prop {
         &Prop::Null => Value::Null,
-        &Prop::Bool(ref v) => Value::Bool(*v),
+        &Prop::Boolean(ref v) => Value::Bool(*v),
         &Prop::Number(ref v) => Value::Number(serde_json::Number::from_f64(*v).unwrap()),
         &Prop::String(ref v) => Value::String(v.clone()),
         &Prop::Function(ref v) => Value::Null,
@@ -336,7 +386,7 @@ pub fn array_to_json(array: &Array) -> Vec<Value> {
     for v in array {
         match v {
             &Prop::Null => out.push(Value::Null),
-            &Prop::Bool(ref v) => out.push(Value::Bool(*v)),
+            &Prop::Boolean(ref v) => out.push(Value::Bool(*v)),
             &Prop::Number(ref v) => {
                 out.push(Value::Number(serde_json::Number::from_f64(*v).unwrap()))
             }
@@ -359,7 +409,7 @@ pub fn props_to_json(props: &Props) -> Map<String, Value> {
             &Prop::Null => {
                 out.insert(k.clone(), Value::Null);
             }
-            &Prop::Bool(ref v) => {
+            &Prop::Boolean(ref v) => {
                 out.insert(k.clone(), Value::Bool(*v));
             }
             &Prop::Number(ref v) => {

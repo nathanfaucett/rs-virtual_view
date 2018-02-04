@@ -1,6 +1,7 @@
+use std::fmt;
 use std::sync::Arc;
 
-use fnv::FnvHashMap;
+use fnv::{FnvHashMap, FnvHashSet};
 
 use super::super::{is_ancestor_id_of, traverse_path};
 use super::Event;
@@ -57,5 +58,23 @@ impl EventManager {
                 event.propagation()
             });
         }
+    }
+}
+
+impl fmt::Debug for EventManager {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{:?}",
+            self.0
+                .iter()
+                .map(|(k, v)| (
+                    k.clone(),
+                    v.iter()
+                        .map(|(i, _)| i.clone())
+                        .collect::<FnvHashSet<String>>()
+                ))
+                .collect::<FnvHashMap<String, FnvHashSet<String>>>()
+        )
     }
 }

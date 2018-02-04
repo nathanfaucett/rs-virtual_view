@@ -1,5 +1,6 @@
 use std::ops::{Deref, DerefMut};
 use std::hash::{Hash, Hasher};
+use std::iter::FromIterator;
 
 use super::Prop;
 
@@ -80,11 +81,25 @@ impl<'a> IntoIterator for &'a mut Array {
     }
 }
 
-impl<T> ::std::iter::FromIterator<T> for Array
+impl<T> From<Vec<T>> for Array
 where
     T: Into<Prop>,
 {
     #[inline(always)]
+    fn from(vec: Vec<T>) -> Self {
+        let mut a = Array::new();
+        for v in vec {
+            a.push(v.into());
+        }
+        a
+    }
+}
+
+impl<T> FromIterator<T> for Array
+where
+    T: Into<Prop>,
+{
+    #[inline]
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let mut a = Array::new();
         for v in iter {
