@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use super::super::{view_id, EventManager, Props, Transaction, View};
+use super::super::{EventManager, Props, Transaction, View};
 use super::{ComponentNode, Node, Nodes, ViewNode};
 
 static ROOT_ID: AtomicUsize = AtomicUsize::new(0);

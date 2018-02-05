@@ -45,12 +45,12 @@ impl Node for ViewNode {
     #[inline]
     fn update(
         &mut self,
-        view: View,
-        nodes: &Nodes,
-        transaction: &mut Transaction,
-        event_manager: &mut EventManager,
+        _view: View,
+        _nodes: &Nodes,
+        _transaction: &mut Transaction,
+        _event_manager: &mut EventManager,
     ) -> View {
-        let mut rendered_view = self.rendered_view();
+        let rendered_view = self.rendered_view();
         rendered_view
     }
 }

@@ -1,5 +1,7 @@
 mod children;
 mod component;
+#[macro_use]
+pub mod macros;
 mod view_kind;
 mod view;
 

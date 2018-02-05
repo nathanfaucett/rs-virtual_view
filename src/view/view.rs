@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use std::fmt;
 
 use super::super::{prop_to_string_take, Props};
 use super::{Children, Component, ViewKind};

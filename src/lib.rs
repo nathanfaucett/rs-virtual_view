@@ -13,7 +13,8 @@ mod prop;
 mod transaction;
 mod tree;
 mod utils;
-mod view;
+#[macro_use]
+pub mod view;
 
 pub use self::diff::{diff_children, diff_props, diff_props_map, DiffChildren};
 pub use self::event_manager::{Event, EventManager};

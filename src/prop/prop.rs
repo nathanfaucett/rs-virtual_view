@@ -74,6 +74,56 @@ impl Prop {
     }
 
     #[inline]
+    pub fn take_null(self) -> Option<()> {
+        match self {
+            Prop::Null => Some(()),
+            _ => None,
+        }
+    }
+    #[inline]
+    pub fn take_boolean(self) -> Option<bool> {
+        match self {
+            Prop::Boolean(v) => Some(v),
+            _ => None,
+        }
+    }
+    #[inline]
+    pub fn take_number(self) -> Option<Number> {
+        match self {
+            Prop::Number(v) => Some(v),
+            _ => None,
+        }
+    }
+    #[inline]
+    pub fn take_string(self) -> Option<String> {
+        match self {
+            Prop::String(v) => Some(v),
+            _ => None,
+        }
+    }
+    #[inline]
+    pub fn take_function(self) -> Option<Function> {
+        match self {
+            Prop::Function(v) => Some(v),
+            _ => None,
+        }
+    }
+    #[inline]
+    pub fn take_array(self) -> Option<Array> {
+        match self {
+            Prop::Array(v) => Some(v),
+            _ => None,
+        }
+    }
+    #[inline]
+    pub fn take_map(self) -> Option<Props> {
+        match self {
+            Prop::Map(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    #[inline]
     pub fn is_null(&self) -> bool {
         match self {
             &Prop::Null => true,
@@ -121,6 +171,13 @@ impl Prop {
             &Prop::Map(_) => true,
             _ => false,
         }
+    }
+}
+
+impl<'a> From<&'a Prop> for Prop {
+    #[inline]
+    fn from(prop: &'a Prop) -> Self {
+        prop.clone()
     }
 }
 
@@ -174,6 +231,13 @@ where
     }
 }
 
+impl From<Array> for Prop {
+    #[inline]
+    fn from(array: Array) -> Self {
+        Prop::Array(array)
+    }
+}
+
 impl<T> From<FnvHashMap<String, T>> for Prop
 where
     T: Into<Prop>,
@@ -181,6 +245,20 @@ where
     #[inline]
     fn from(value: FnvHashMap<String, T>) -> Self {
         Prop::Map(value.into_iter().map(|(k, v)| (k, v.into())).collect())
+    }
+}
+
+impl From<Props> for Prop {
+    #[inline]
+    fn from(props: Props) -> Self {
+        Prop::Map(props)
+    }
+}
+
+impl From<Function> for Prop {
+    #[inline]
+    fn from(value: Function) -> Self {
+        Prop::Function(value)
     }
 }
 
@@ -373,7 +451,7 @@ pub fn prop_to_json(prop: &Prop) -> Value {
         &Prop::Boolean(ref v) => Value::Bool(*v),
         &Prop::Number(ref v) => Value::Number(serde_json::Number::from_f64(*v).unwrap()),
         &Prop::String(ref v) => Value::String(v.clone()),
-        &Prop::Function(ref v) => Value::Null,
+        &Prop::Function(_) => Value::Null,
         &Prop::Array(ref v) => Value::Array(array_to_json(v)),
         &Prop::Map(ref v) => Value::Object(props_to_json(v)),
     }
@@ -391,7 +469,7 @@ pub fn array_to_json(array: &Array) -> Vec<Value> {
                 out.push(Value::Number(serde_json::Number::from_f64(*v).unwrap()))
             }
             &Prop::String(ref v) => out.push(Value::String(v.clone())),
-            &Prop::Function(ref v) => (),
+            &Prop::Function(_) => (),
             &Prop::Array(ref v) => out.push(Value::Array(array_to_json(v))),
             &Prop::Map(ref v) => out.push(Value::Object(props_to_json(v))),
         }
@@ -421,7 +499,7 @@ pub fn props_to_json(props: &Props) -> Map<String, Value> {
             &Prop::String(ref v) => {
                 out.insert(k.clone(), Value::String(v.clone()));
             }
-            &Prop::Function(ref v) => (),
+            &Prop::Function(_) => (),
             &Prop::Array(ref v) => {
                 out.insert(k.clone(), Value::Array(array_to_json(v)));
             }

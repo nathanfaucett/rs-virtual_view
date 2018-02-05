@@ -28,9 +28,9 @@ impl Component for Counter {
     }
     #[inline]
     fn initial_state(&self, props: &Props) -> Props {
-        let mut state = Props::default();
-        state.insert("count", props.take("count").unwrap_or(0.into()));
-        state
+        props! {
+            "count": props.take("count").unwrap_or(0.into())
+        }
     }
     fn render(&self, updater: Updater, state: &Props, props: &Props, children: &Children) -> View {
         let mut add = View::new_component(Button);
