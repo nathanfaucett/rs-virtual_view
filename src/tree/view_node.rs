@@ -18,23 +18,27 @@ impl Node for ViewNode {
         &self.parent_id
     }
     #[inline]
+    fn last_rendered_view(&self) -> Option<&View> {
+        self.rendered_view.as_ref()
+    }
+    #[inline]
     fn mount(
         &mut self,
         nodes: &Nodes,
+        event_manager: &EventManager,
         transaction: &mut Transaction,
-        event_manager: &mut EventManager,
     ) -> View {
         let mut rendered_view = self.rendered_view();
 
         if let Some(props) = rendered_view.props() {
-            Tree::mount_props_events(&self.id, props, transaction, event_manager);
+            Tree::mount_props_events(event_manager, &self.id, props, transaction);
         }
 
         if let Some(children) = rendered_view.children_mut() {
             children.iter_mut().enumerate().for_each(|(index, child)| {
                 let child_id = view_id(&self.id, child.key(), index);
                 *child =
-                    Tree::mount_view(nodes, child_id, child.clone(), transaction, event_manager);
+                    Tree::mount_view(nodes, event_manager, child_id, child.clone(), transaction);
             });
         }
 
@@ -47,8 +51,8 @@ impl Node for ViewNode {
         &mut self,
         _view: View,
         _nodes: &Nodes,
+        _event_manager: &EventManager,
         _transaction: &mut Transaction,
-        _event_manager: &mut EventManager,
     ) -> View {
         let rendered_view = self.rendered_view();
         rendered_view

@@ -26,7 +26,7 @@ impl Props {
 
     #[inline]
     pub fn take(&self, key: &str) -> Option<Prop> {
-        self.0.get(key).map(|x| x.clone())
+        self.0.get(key).map(Clone::clone)
     }
 }
 

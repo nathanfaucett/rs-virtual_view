@@ -1,5 +1,5 @@
 use std::fmt;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use fnv::{FnvHashMap, FnvHashSet};
 
@@ -7,50 +7,75 @@ use super::super::{is_ancestor_id_of, traverse_path};
 use super::Event;
 
 #[derive(Clone)]
-pub struct EventManager(FnvHashMap<String, FnvHashMap<String, Arc<Fn(&mut Event)>>>);
+pub struct EventManager(Arc<RwLock<FnvHashMap<String, FnvHashMap<String, Arc<Fn(&mut Event)>>>>>);
 
 unsafe impl Send for EventManager {}
 unsafe impl Sync for EventManager {}
 
 impl EventManager {
-    #[inline(always)]
+    #[inline]
     pub fn new() -> Self {
-        EventManager(FnvHashMap::default())
+        EventManager(Arc::new(RwLock::new(FnvHashMap::default())))
     }
 
     #[inline]
-    pub(crate) fn add(&mut self, id: &str, name: &str, func: Arc<Fn(&mut Event)>) {
-        if !self.0.contains_key(name) {
-            self.0.insert(name.into(), FnvHashMap::default());
+    pub(crate) fn read(
+        &self,
+    ) -> RwLockReadGuard<FnvHashMap<String, FnvHashMap<String, Arc<Fn(&mut Event)>>>> {
+        self.0
+            .read()
+            .expect("failed to acquire EventManager read lock")
+    }
+
+    #[inline]
+    pub(crate) fn write(
+        &self,
+    ) -> RwLockWriteGuard<FnvHashMap<String, FnvHashMap<String, Arc<Fn(&mut Event)>>>> {
+        self.0
+            .write()
+            .expect("failed to acquire EventManager write lock")
+    }
+
+    #[inline]
+    pub(crate) fn add(&self, id: &str, name: &str, func: Arc<Fn(&mut Event)>) {
+        let mut write = self.write();
+
+        if !write.contains_key(name) {
+            write.insert(name.into(), FnvHashMap::default());
         }
 
-        let funcs = self.0.get_mut(name).unwrap();
+        let funcs = write.get_mut(name).unwrap();
         funcs.insert(id.into(), func);
     }
 
     #[inline]
-    pub(crate) fn remove(&mut self, id: &str, name: &str) {
+    pub(crate) fn remove(&self, id: &str, name: &str) {
+        let mut write = self.write();
         let mut remove = false;
 
-        if let Some(funcs) = self.0.get_mut(name) {
+        if let Some(funcs) = write.get_mut(name) {
             funcs.remove(id);
             remove = funcs.len() == 0;
         }
         if remove {
-            self.0.remove(name);
+            write.remove(name);
         }
     }
 
     #[inline]
-    pub(crate) fn remove_all(&mut self, parent_id: &str) {
-        for (_, events) in &mut self.0 {
+    pub(crate) fn remove_all(&self, parent_id: &str) {
+        let mut write = self.write();
+
+        for (_, events) in write.iter_mut() {
             events.retain(|id, _| !is_ancestor_id_of(parent_id, id));
         }
     }
 
     #[inline]
     pub fn dispatch(&self, id: &str, event: &mut Event) {
-        if let Some(events) = self.0.get(event.name()) {
+        let read = self.read();
+
+        if let Some(events) = read.get(event.name()) {
             traverse_path(id, "", false, true, |id, _| {
                 if let Some(func) = events.get(id) {
                     (&*func)(event);
@@ -66,7 +91,7 @@ impl fmt::Debug for EventManager {
         write!(
             f,
             "{:?}",
-            self.0
+            self.read()
                 .iter()
                 .map(|(k, v)| (
                     k.clone(),

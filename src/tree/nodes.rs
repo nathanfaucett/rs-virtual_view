@@ -17,4 +17,13 @@ impl Nodes {
     pub fn lock(&self) -> MutexGuard<FnvHashMap<String, Box<Node>>> {
         self.0.lock().unwrap()
     }
+
+    #[inline]
+    pub fn insert(&self, id: String, node: Box<Node>) {
+        self.lock().insert(id, node);
+    }
+    #[inline]
+    pub fn remove(&self, id: &str) {
+        self.lock().remove(id);
+    }
 }
