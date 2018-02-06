@@ -55,7 +55,8 @@ fn test_component() {
     let mut view = View::new_component(Counter);
     view.props_mut().unwrap().insert("count", 0);
 
-    let transaction = tree.mount(view);
-    println!("{:#?}", transaction);
+    let _mount_transaction = tree.mount(view);
+    let _unmount_transaction = tree.unmount();
+
     assert!(false);
 }

@@ -1,6 +1,8 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use super::super::{traverse_path, EventManager, Props, Transaction, View};
+use fnv::FnvHashSet;
+
+use super::super::{view_id, EventManager, Props, Transaction, View};
 use super::{ComponentNode, Node, Nodes, ViewNode};
 
 static ROOT_ID: AtomicUsize = AtomicUsize::new(0);
@@ -129,6 +131,43 @@ impl Tree {
     }
 
     #[inline]
+    fn unmount_view_internal(
+        event_manager: &EventManager,
+        remove_ids: &mut FnvHashSet<String>,
+        parent_id: &str,
+        index: usize,
+        child: &View,
+        transaction: &mut Transaction,
+    ) {
+        match child {
+            &View::Data {
+                ref key,
+                ref props,
+                ref children,
+                ..
+            } => {
+                let child_id = view_id(parent_id, key.as_ref(), index);
+
+                Self::unmount_props_events(event_manager, &child_id, props, transaction);
+
+                for (index, child) in children.iter().enumerate() {
+                    Self::unmount_view_internal(
+                        event_manager,
+                        remove_ids,
+                        &child_id,
+                        index,
+                        child,
+                        transaction,
+                    );
+                }
+
+                remove_ids.insert(child_id);
+            }
+            _ => (),
+        }
+    }
+
+    #[inline]
     pub(super) fn unmount_view(
         nodes: &Nodes,
         event_manager: &EventManager,
@@ -137,28 +176,40 @@ impl Tree {
     ) -> Option<View> {
         let mut nodes_lock = nodes.lock();
 
-        if nodes_lock.contains_key(id) {
-            let rendered_view = nodes_lock
-                .get(id)
-                .unwrap()
-                .last_rendered_view()
-                .map(Clone::clone);
+        let mut remove_ids = FnvHashSet::default();
 
-            traverse_path(id, "", false, true, |id, _| {
-                if let Some(node) = nodes_lock.get(id) {
-                    if let Some(view) = node.last_rendered_view() {
-                        if let Some(props) = view.props() {
-                            Self::unmount_props_events(event_manager, id, props, transaction);
-                        }
+        let view = if let Some(node) = nodes_lock.get(id) {
+            remove_ids.insert(id.clone());
+
+            if let Some(view) = node.last_rendered_view() {
+                if let Some(props) = view.props() {
+                    Self::unmount_props_events(event_manager, id, props, transaction);
+                }
+                if let Some(children) = view.children() {
+                    for (index, child) in children.iter().enumerate() {
+                        Self::unmount_view_internal(
+                            event_manager,
+                            &mut remove_ids,
+                            id,
+                            index,
+                            child,
+                            transaction,
+                        );
                     }
                 }
-                nodes_lock.remove(id);
-                true
-            });
 
-            rendered_view
+                Some(view.clone())
+            } else {
+                None
+            }
         } else {
             None
+        };
+
+        for id in remove_ids {
+            nodes_lock.remove(&id);
         }
+
+        view
     }
 }

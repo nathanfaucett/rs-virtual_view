@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate view;
 
-use view::{Array, Event, Prop, Props};
+use view::{Event, Prop, Props};
 
 #[test]
 fn test_prop_null() {
@@ -56,8 +56,6 @@ fn test_prop_full() {
 
 #[test]
 fn test_prop_extend() {
-    let copy = 0.0;
-
     let a = props! {
         "0": 0,
     };
