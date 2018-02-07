@@ -1,5 +1,5 @@
-use super::super::{view_id, EventManager, Transaction, View};
-use super::{Node, Nodes, Tree};
+use super::super::{view_id, Props, Transaction, View};
+use super::{Node, Tree};
 
 pub struct ViewNode {
     id: String,
@@ -17,28 +17,26 @@ impl Node for ViewNode {
     fn parent_id(&self) -> &String {
         &self.parent_id
     }
+    #[inline(always)]
+    fn state(&self) -> Props {
+        Props::new()
+    }
     #[inline]
     fn last_rendered_view(&self) -> Option<&View> {
         self.rendered_view.as_ref()
     }
     #[inline]
-    fn mount(
-        &mut self,
-        nodes: &Nodes,
-        event_manager: &EventManager,
-        transaction: &mut Transaction,
-    ) -> View {
+    fn mount(&mut self, tree: &Tree, transaction: &mut Transaction) -> View {
         let mut rendered_view = self.rendered_view();
 
         if let Some(props) = rendered_view.props() {
-            Tree::mount_props_events(event_manager, &self.id, props, transaction);
+            tree.mount_props_events(&self.id, props, transaction);
         }
 
         if let Some(children) = rendered_view.children_mut() {
             children.iter_mut().enumerate().for_each(|(index, child)| {
                 let child_id = view_id(&self.id, child.key(), index);
-                *child =
-                    Tree::mount_view(nodes, event_manager, child_id, child.clone(), transaction);
+                *child = tree.mount_view(child_id, child.clone(), transaction);
             });
         }
 
@@ -47,13 +45,7 @@ impl Node for ViewNode {
     }
 
     #[inline]
-    fn update(
-        &mut self,
-        _view: View,
-        _nodes: &Nodes,
-        _event_manager: &EventManager,
-        _transaction: &mut Transaction,
-    ) -> View {
+    fn update(&mut self, _view: View, _tree: &Tree, _transaction: &mut Transaction) -> View {
         let rendered_view = self.rendered_view();
         rendered_view
     }

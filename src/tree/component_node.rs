@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use super::super::{view_id, Children, Component, EventManager, Props, Transaction, View};
-use super::{Node, Nodes, Tree, Updater};
+use super::super::{view_id, Children, Component, Props, Transaction, Updater, View};
+use super::{Node, Tree};
 
 pub struct ComponentNode {
     id: String,
@@ -22,21 +22,20 @@ impl Node for ComponentNode {
     fn parent_id(&self) -> &String {
         &self.parent_id
     }
+    #[inline(always)]
+    fn state(&self) -> Props {
+        self.state.clone()
+    }
     #[inline]
     fn last_rendered_view(&self) -> Option<&View> {
         self.rendered_view.as_ref()
     }
     #[inline]
-    fn mount(
-        &mut self,
-        nodes: &Nodes,
-        event_manager: &EventManager,
-        transaction: &mut Transaction,
-    ) -> View {
+    fn mount(&mut self, tree: &Tree, transaction: &mut Transaction) -> View {
         let mut rendered_view = self.rendered_view();
 
         if let Some(props) = rendered_view.props() {
-            Tree::mount_props_events(event_manager, &self.id, props, transaction);
+            tree.mount_props_events(&self.id, props, transaction);
         }
 
         if let Some(children) = rendered_view.children_mut() {
@@ -44,13 +43,7 @@ impl Node for ComponentNode {
                 if child.is_data() {
                     let child_id = view_id(&self.id, child.key(), index);
 
-                    *child = Tree::mount_view(
-                        nodes,
-                        event_manager,
-                        child_id,
-                        child.clone(),
-                        transaction,
-                    );
+                    *child = tree.mount_view(child_id, child.clone(), transaction);
                 }
             });
         }
@@ -60,13 +53,7 @@ impl Node for ComponentNode {
     }
 
     #[inline]
-    fn update(
-        &mut self,
-        _view: View,
-        _nodes: &Nodes,
-        _event_manager: &EventManager,
-        _transaction: &mut Transaction,
-    ) -> View {
+    fn update(&mut self, _view: View, _tree: &Tree, _transaction: &mut Transaction) -> View {
         let rendered_view = self.rendered_view();
         rendered_view
     }
@@ -74,14 +61,20 @@ impl Node for ComponentNode {
 
 impl ComponentNode {
     #[inline]
-    pub fn new(id: String, parent_id: String, view: View, component: Arc<Component>) -> Self {
+    pub fn new(
+        id: String,
+        parent_id: String,
+        view: View,
+        component: Arc<Component>,
+        updater: Updater,
+    ) -> Self {
         ComponentNode {
             id: id,
             parent_id: parent_id,
             state: component.initial_state(view.props().unwrap()),
             view: view,
             rendered_view: None,
-            updater: Updater,
+            updater: updater,
             component: component,
         }
     }
@@ -95,7 +88,6 @@ impl ComponentNode {
         let props = self.view.props().unwrap_or(&empty_props);
         let children = self.view.children().unwrap_or(&empty_children);
 
-        self.component
-            .render(self.updater.clone(), state, props, children)
+        self.component.render(&self.updater, state, props, children)
     }
 }

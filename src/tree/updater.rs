@@ -1,12 +1,23 @@
-#[derive(Clone, Copy)]
-pub struct Updater;
+use super::super::Props;
+use super::Tree;
 
-unsafe impl Send for Updater {}
-unsafe impl Sync for Updater {}
+#[derive(Clone)]
+pub struct Updater {
+    id: String,
+    tree: Tree,
+}
 
 impl Updater {
-    #[inline(always)]
-    pub fn new() -> Self {
-        Updater
+    #[inline]
+    pub(super) fn new(id: String, tree: Tree) -> Self {
+        Updater { id: id, tree: tree }
+    }
+
+    #[inline]
+    pub fn update<F>(&self, f: F)
+    where
+        F: Fn(&mut Props),
+    {
+        self.tree.update(&self.id, f);
     }
 }

@@ -4,7 +4,7 @@ use super::super::{Props, Updater};
 use super::{Children, View};
 
 pub trait Component: 'static + Any {
-    fn render(&self, updater: Updater, state: &Props, props: &Props, children: &Children) -> View;
+    fn render(&self, updater: &Updater, state: &Props, props: &Props, children: &Children) -> View;
 
     #[inline(always)]
     fn name(&self) -> &'static str {

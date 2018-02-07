@@ -25,6 +25,14 @@ impl Props {
     }
 
     #[inline]
+    pub fn update<F>(&mut self, key: &str, f: F) -> &mut Self
+    where
+        F: Fn(&mut Prop),
+    {
+        self.0.get_mut(key).map(f);
+        self
+    }
+    #[inline]
     pub fn take(&self, key: &str) -> Option<Prop> {
         self.0.get(key).map(Clone::clone)
     }

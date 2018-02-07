@@ -19,15 +19,6 @@ impl Nodes {
     }
 
     #[inline]
-    pub fn with_lock<F, U>(&self, f: F) -> U
-    where
-        F: Fn(MutexGuard<FnvHashMap<String, Box<Node>>>) -> U,
-    {
-        let lock = self.lock();
-        f(lock)
-    }
-
-    #[inline]
     pub fn insert(&self, id: String, node: Box<Node>) {
         self.lock().insert(id, node);
     }
