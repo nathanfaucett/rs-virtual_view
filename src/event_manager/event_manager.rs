@@ -7,7 +7,7 @@ use super::super::{is_ancestor_id_of, traverse_path};
 use super::Event;
 
 #[derive(Clone)]
-pub struct EventManager(Arc<RwLock<FnvHashMap<String, FnvHashMap<String, Arc<Fn(&mut Event)>>>>>);
+pub struct EventManager(Arc<RwLock<EventManagerInner>>);
 
 unsafe impl Send for EventManager {}
 unsafe impl Sync for EventManager {}
@@ -15,74 +15,26 @@ unsafe impl Sync for EventManager {}
 impl EventManager {
     #[inline]
     pub fn new() -> Self {
-        EventManager(Arc::new(RwLock::new(FnvHashMap::default())))
+        EventManager(Arc::new(RwLock::new(EventManagerInner::new())))
     }
 
     #[inline]
-    pub(crate) fn read(
-        &self,
-    ) -> RwLockReadGuard<FnvHashMap<String, FnvHashMap<String, Arc<Fn(&mut Event)>>>> {
+    pub(crate) fn read(&self) -> RwLockReadGuard<EventManagerInner> {
         self.0
             .read()
             .expect("failed to acquire EventManager read lock")
     }
 
     #[inline]
-    pub(crate) fn write(
-        &self,
-    ) -> RwLockWriteGuard<FnvHashMap<String, FnvHashMap<String, Arc<Fn(&mut Event)>>>> {
+    pub(crate) fn write(&self) -> RwLockWriteGuard<EventManagerInner> {
         self.0
             .write()
             .expect("failed to acquire EventManager write lock")
     }
 
     #[inline]
-    pub(crate) fn add(&self, id: &str, name: &str, func: Arc<Fn(&mut Event)>) {
-        let mut write = self.write();
-
-        if !write.contains_key(name) {
-            write.insert(name.into(), FnvHashMap::default());
-        }
-
-        let funcs = write.get_mut(name).unwrap();
-        funcs.insert(id.into(), func);
-    }
-
-    #[inline]
-    pub(crate) fn remove(&self, id: &str, name: &str) {
-        let mut write = self.write();
-        let mut remove = false;
-
-        if let Some(funcs) = write.get_mut(name) {
-            funcs.remove(id);
-            remove = funcs.len() == 0;
-        }
-        if remove {
-            write.remove(name);
-        }
-    }
-
-    #[inline]
-    pub(crate) fn remove_all(&self, parent_id: &str) {
-        let mut write = self.write();
-
-        for (_, events) in write.iter_mut() {
-            events.retain(|id, _| !is_ancestor_id_of(parent_id, id));
-        }
-    }
-
-    #[inline]
     pub fn dispatch(&self, id: &str, event: &mut Event) {
-        let read = self.read();
-
-        if let Some(events) = read.get(event.name()) {
-            traverse_path(id, "", false, true, |id, _| {
-                if let Some(func) = events.get(id) {
-                    (&*func)(event);
-                }
-                event.propagation()
-            });
-        }
+        self.read().dispatch(id, event)
     }
 }
 
@@ -92,6 +44,7 @@ impl fmt::Debug for EventManager {
             f,
             "{:?}",
             self.read()
+                .0
                 .iter()
                 .map(|(k, v)| (
                     k.clone(),
@@ -101,5 +54,47 @@ impl fmt::Debug for EventManager {
                 ))
                 .collect::<FnvHashMap<String, FnvHashSet<String>>>()
         )
+    }
+}
+
+pub(crate) struct EventManagerInner(FnvHashMap<String, FnvHashMap<String, Arc<Fn(&mut Event)>>>);
+
+impl EventManagerInner {
+    #[inline]
+    fn new() -> Self {
+        EventManagerInner(FnvHashMap::default())
+    }
+    #[inline]
+    pub(crate) fn add(&mut self, id: &str, name: &str, func: Arc<Fn(&mut Event)>) {
+        self.0
+            .entry(name.into())
+            .or_insert_with(FnvHashMap::default)
+            .insert(id.into(), func);
+    }
+
+    #[inline]
+    pub(crate) fn remove(&mut self, id: &str, name: &str) {
+        let remove = if let Some(funcs) = self.0.get_mut(name) {
+            funcs.remove(id);
+            funcs.len() == 0
+        } else {
+            false
+        };
+
+        if remove {
+            self.0.remove(name);
+        }
+    }
+
+    #[inline]
+    pub fn dispatch(&self, id: &str, event: &mut Event) {
+        if let Some(events) = self.0.get(event.name()) {
+            traverse_path(id, "", false, true, |id, _| {
+                if let Some(func) = events.get(id) {
+                    (&*func)(event);
+                }
+                event.propagation()
+            });
+        }
     }
 }

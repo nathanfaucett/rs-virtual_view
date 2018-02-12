@@ -16,8 +16,13 @@ impl Updater {
     #[inline]
     pub fn update<F>(&self, f: F)
     where
-        F: Fn(&mut Props),
+        F: Fn(&Props) -> Props,
     {
         self.tree.update(&self.id, f);
+    }
+
+    #[inline]
+    pub fn force_update(&self) {
+        self.update(Clone::clone);
     }
 }

@@ -1,11 +1,59 @@
-use super::super::{Props, Transaction, View};
-use super::Tree;
+use std::sync::{Arc, Mutex, MutexGuard};
 
-pub trait Node {
-    fn id(&self) -> &String;
-    fn parent_id(&self) -> &String;
-    fn state(&self) -> Props;
-    fn last_rendered_view(&self) -> Option<&View>;
-    fn mount(&mut self, &Tree, &mut Transaction) -> View;
-    fn update(&mut self, View, &Tree, &mut Transaction) -> View;
+use super::super::{Children, Component, Props, Transaction, View};
+use super::{Tree, Updater};
+
+pub enum NodeKind {
+    View,
+    Component {
+        state: Props,
+        updater: Updater,
+        component: Arc<Component>,
+    },
+}
+
+pub struct NodeInner {
+    pub(super) index: usize,
+    pub(super) view: View,
+    pub(super) rendered_view: View,
+    pub(super) kind: NodeKind,
+}
+
+#[derive(Clone)]
+pub struct Node(Arc<Mutex<NodeInner>>);
+
+impl Node {
+    #[inline]
+    pub fn new_view(index: usize, view: View) -> Self {
+        Node(Arc::new(Mutex::new(NodeInner {
+            index: index,
+            view: view,
+            rendered_view: View::Text(String::new()),
+            kind: NodeKind::View,
+        })))
+    }
+    #[inline]
+    pub fn new_component(
+        index: usize,
+        view: View,
+        updater: Updater,
+        component: Arc<Component>,
+    ) -> Self {
+        let state = component.initial_state(view.props().unwrap());
+
+        Node(Arc::new(Mutex::new(NodeInner {
+            index: index,
+            view: view,
+            rendered_view: View::Text(String::new()),
+            kind: NodeKind::Component {
+                state: state,
+                updater: updater,
+                component: component,
+            },
+        })))
+    }
+    #[inline]
+    pub fn lock(&self) -> MutexGuard<NodeInner> {
+        self.0.lock().expect("failed to acquire node lock")
+    }
 }

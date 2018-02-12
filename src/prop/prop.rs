@@ -16,7 +16,7 @@ pub enum Prop {
     String(String),
     Function(Function),
     Array(Array),
-    Map(Props),
+    Object(Props),
 }
 
 pub type Number = f64;
@@ -66,9 +66,9 @@ impl Prop {
         }
     }
     #[inline]
-    pub fn map(&self) -> Option<&Props> {
+    pub fn object(&self) -> Option<&Props> {
         match self {
-            &Prop::Map(ref v) => Some(v),
+            &Prop::Object(ref v) => Some(v),
             _ => None,
         }
     }
@@ -116,9 +116,9 @@ impl Prop {
         }
     }
     #[inline]
-    pub fn take_map(self) -> Option<Props> {
+    pub fn take_object(self) -> Option<Props> {
         match self {
-            Prop::Map(v) => Some(v),
+            Prop::Object(v) => Some(v),
             _ => None,
         }
     }
@@ -166,9 +166,9 @@ impl Prop {
         }
     }
     #[inline]
-    pub fn is_map(&self) -> bool {
+    pub fn is_object(&self) -> bool {
         match self {
-            &Prop::Map(_) => true,
+            &Prop::Object(_) => true,
             _ => false,
         }
     }
@@ -244,14 +244,14 @@ where
 {
     #[inline]
     fn from(value: FnvHashMap<String, T>) -> Self {
-        Prop::Map(value.into_iter().map(|(k, v)| (k, v.into())).collect())
+        Prop::Object(value.into_iter().map(|(k, v)| (k, v.into())).collect())
     }
 }
 
 impl From<Props> for Prop {
     #[inline]
     fn from(props: Props) -> Self {
-        Prop::Map(props)
+        Prop::Object(props)
     }
 }
 
@@ -281,7 +281,7 @@ impl From<Value> for Prop {
             Value::Number(v) => Prop::Number(v.as_f64().unwrap_or(0.0)),
             Value::String(v) => Prop::String(v),
             Value::Array(a) => Prop::Array(a.into_iter().map(Into::<Prop>::into).collect()),
-            Value::Object(m) => Prop::Map(
+            Value::Object(m) => Prop::Object(
                 m.into_iter()
                     .map(|(k, v)| (k, Into::<Prop>::into(v)))
                     .collect(),
@@ -299,7 +299,7 @@ impl<'a> From<&'a Value> for Prop {
             &Value::Number(ref v) => Prop::Number(v.as_f64().unwrap_or(0.0)),
             &Value::String(ref v) => Prop::String(v.clone()),
             &Value::Array(ref a) => Prop::Array(a.into_iter().map(Into::<Prop>::into).collect()),
-            &Value::Object(ref m) => Prop::Map(
+            &Value::Object(ref m) => Prop::Object(
                 m.into_iter()
                     .map(|(k, v)| (k.clone(), Into::<Prop>::into(v)))
                     .collect(),
@@ -318,7 +318,7 @@ impl fmt::Debug for Prop {
             &Prop::String(ref v) => write!(f, "{:?}", v),
             &Prop::Function(_) => write!(f, "Fn(&mut Event)"),
             &Prop::Array(ref v) => write!(f, "{:?}", v),
-            &Prop::Map(ref v) => write!(f, "{:?}", v),
+            &Prop::Object(ref v) => write!(f, "{:?}", v),
         }
     }
 }
@@ -351,11 +351,11 @@ impl fmt::Display for Prop {
                     write!(f, "[]")
                 }
             }
-            &Prop::Map(ref map) => {
-                let il = map.len();
+            &Prop::Object(ref object) => {
+                let il = object.len();
 
                 if il != 0 {
-                    let array = map.iter().collect::<Vec<_>>();
+                    let array = object.iter().collect::<Vec<_>>();
 
                     let mut out = String::new();
                     let mut i = 1;
@@ -413,8 +413,8 @@ impl PartialEq for Prop {
                 &Prop::Array(ref b) => a == b,
                 _ => false,
             },
-            &Prop::Map(ref a) => match other {
-                &Prop::Map(ref b) => a == b,
+            &Prop::Object(ref a) => match other {
+                &Prop::Object(ref b) => a == b,
                 _ => false,
             },
         }
@@ -436,7 +436,7 @@ impl Hash for Prop {
             &Prop::Array(ref a) => for v in a {
                 v.hash(state);
             },
-            &Prop::Map(ref m) => for (k, v) in m {
+            &Prop::Object(ref m) => for (k, v) in m {
                 k.hash(state);
                 v.hash(state);
             },
@@ -453,7 +453,7 @@ pub fn prop_to_json(prop: &Prop) -> Value {
         &Prop::String(ref v) => Value::String(v.clone()),
         &Prop::Function(_) => Value::Null,
         &Prop::Array(ref v) => Value::Array(array_to_json(v)),
-        &Prop::Map(ref v) => Value::Object(props_to_json(v)),
+        &Prop::Object(ref v) => Value::Object(props_to_json(v)),
     }
 }
 
@@ -471,7 +471,7 @@ pub fn array_to_json(array: &Array) -> Vec<Value> {
             &Prop::String(ref v) => out.push(Value::String(v.clone())),
             &Prop::Function(_) => (),
             &Prop::Array(ref v) => out.push(Value::Array(array_to_json(v))),
-            &Prop::Map(ref v) => out.push(Value::Object(props_to_json(v))),
+            &Prop::Object(ref v) => out.push(Value::Object(props_to_json(v))),
         }
     }
 
@@ -503,7 +503,7 @@ pub fn props_to_json(props: &Props) -> Map<String, Value> {
             &Prop::Array(ref v) => {
                 out.insert(k.clone(), Value::Array(array_to_json(v)));
             }
-            &Prop::Map(ref v) => {
+            &Prop::Object(ref v) => {
                 out.insert(k.clone(), Value::Object(props_to_json(v)));
             }
         }

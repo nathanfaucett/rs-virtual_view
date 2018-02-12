@@ -34,9 +34,9 @@ macro_rules! prop_internal {
         prop_internal!(@array [$($elems,)* prop_internal!([$($array)*])] $($rest)*)
     );
 
-    // Next element is a map.
-    (@array [$($elems:expr,)*] {$($map:tt)*} $($rest:tt)*) => (
-        prop_internal!(@array [$($elems,)* prop_internal!({$($map)*})] $($rest)*)
+    // Next element is a object.
+    (@array [$($elems:expr,)*] {$($object:tt)*} $($rest:tt)*) => (
+        prop_internal!(@array [$($elems,)* prop_internal!({$($object)*})] $($rest)*)
     );
 
     // Next element is an expression followed by comma.
@@ -103,9 +103,9 @@ macro_rules! prop_internal {
         prop_internal!(@object $object [$($key)+] (prop_internal!([$($array)*])) $($rest)*);
     );
 
-    // Next value is a map.
-    (@object $object:ident ($($key:tt)+) (: {$($map:tt)*} $($rest:tt)*) $copy:tt) => (
-        prop_internal!(@object $object [$($key)+] (prop_internal!({$($map)*})) $($rest)*);
+    // Next value is a object.
+    (@object $object:ident ($($key:tt)+) (: {$($object:tt)*} $($rest:tt)*) $copy:tt) => (
+        prop_internal!(@object $object [$($key)+] (prop_internal!({$($object)*})) $($rest)*);
     );
 
     // Next value is an expression followed by comma.
@@ -196,10 +196,10 @@ macro_rules! prop_internal {
     });
 
     ({}) => (
-        $crate::Prop::Map(prop_internal!(props {}))
+        $crate::Prop::Object(prop_internal!(props {}))
     );
     ({ $($tt:tt)+ }) => (
-        $crate::Prop::Map(prop_internal!(props { $($tt)+ }))
+        $crate::Prop::Object(prop_internal!(props { $($tt)+ }))
     );
 
     (| $($tt:tt)+ | $body:expr) => ({

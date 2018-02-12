@@ -1,12 +1,11 @@
 use super::super::{Prop, Props};
 
-// TODO: add/remove events to event manager
 #[inline]
 pub fn diff_props(prev: &Prop, next: &Prop) -> Prop {
     match prev {
-        &Prop::Map(ref prev_map) => match next {
-            &Prop::Map(ref next_map) => match diff_props_map(prev_map, next_map) {
-                Some(map) => Prop::Map(map),
+        &Prop::Object(ref prev_object) => match next {
+            &Prop::Object(ref next_object) => match diff_props_object(prev_object, next_object) {
+                Some(object) => Prop::Object(object),
                 None => Prop::Null,
             },
             _ => next.clone(),
@@ -16,26 +15,26 @@ pub fn diff_props(prev: &Prop, next: &Prop) -> Prop {
 }
 
 #[inline]
-pub fn diff_props_map(prev_map: &Props, next_map: &Props) -> Option<Props> {
-    let mut result = Props::default();
+pub fn diff_props_object(prev_object: &Props, next_object: &Props) -> Option<Props> {
+    let mut result = Props::new();
 
-    for (key, prev_value) in prev_map {
-        match next_map.get(key) {
-            Some(next_value) => if prev_value != next_value {
-                result.insert(key.clone(), diff_props(prev_value, next_value));
-            },
-            None => {
+    for (key, prev_value) in prev_object {
+        match next_object.get(key) {
+            &Prop::Null => {
                 result.insert(key.clone(), Prop::Null);
             }
+            next_value => if prev_value != next_value {
+                result.insert(key.clone(), diff_props(prev_value, next_value));
+            },
         }
     }
 
-    for (key, next_value) in next_map {
-        match prev_map.get(key) {
-            Some(_) => (),
-            None => {
+    for (key, next_value) in next_object {
+        match prev_object.get(key) {
+            &Prop::Null => {
                 result.insert(key.clone(), next_value.clone());
             }
+            _ => (),
         }
     }
 

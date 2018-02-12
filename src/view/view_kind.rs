@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use std::any::TypeId;
-use std::{fmt, ptr};
+use std::fmt;
 
 use super::Component;
 
@@ -51,7 +51,7 @@ impl PartialEq for ViewKind {
             },
             &ViewKind::Component(ref a) => match other {
                 &ViewKind::String(_) => false,
-                &ViewKind::Component(ref b) => ptr::eq(&**a, &**b),
+                &ViewKind::Component(ref b) => a.get_type_id() == b.get_type_id(),
             },
         }
     }
@@ -71,7 +71,7 @@ impl fmt::Debug for ViewKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             &ViewKind::String(ref string) => f.write_str(string),
-            &ViewKind::Component(ref component) => f.write_str(component.name()),
+            &ViewKind::Component(ref component) => write!(f, "Component({})", component.name()),
         }
     }
 }

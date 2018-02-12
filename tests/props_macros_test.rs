@@ -35,7 +35,7 @@ fn test_prop_array() {
 fn test_prop_map() {
     let mut props = Props::new();
     props.insert("key", "value");
-    assert_eq!(prop!({"key": "value"}), Prop::Map(props));
+    assert_eq!(prop!({"key": "value"}), Prop::Object(props));
 }
 
 #[test]
@@ -51,7 +51,7 @@ fn test_prop_full() {
         "array": [0, 1, 2]
     };
 
-    assert!(f.get("onclick").unwrap().is_function());
+    assert!(f.get("onclick").is_function());
 }
 
 #[test]
@@ -64,6 +64,6 @@ fn test_prop_extend() {
         ... a
     };
 
-    assert_eq!(b.get("0"), Some(&Prop::Number(0.0)));
-    assert_eq!(b.get("1"), Some(&Prop::Number(1.0)));
+    assert_eq!(b.get("0"), &Prop::Number(0.0));
+    assert_eq!(b.get("1"), &Prop::Number(1.0));
 }

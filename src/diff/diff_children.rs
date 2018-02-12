@@ -194,14 +194,12 @@ impl<'a> KeyIndices<'a> {
         let mut keys = FnvHashMap::default();
         let mut free = Vec::new();
 
-        let mut i = 0;
-        for child in children {
+        for (i, child) in children.iter().enumerate() {
             if let Some(key) = child.key() {
                 keys.insert(key, i);
             } else {
                 free.push(i);
             }
-            i += 1;
         }
 
         KeyIndices {

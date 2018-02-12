@@ -1,10 +1,12 @@
 use fnv::FnvHashMap;
 
-use std::ops::{Deref, DerefMut};
+use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::hash::{Hash, Hasher};
 use std::iter::FromIterator;
 
 use super::Prop;
+
+const PROP_NULL: Prop = Prop::Null;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Props(FnvHashMap<String, Prop>);
@@ -25,6 +27,32 @@ impl Props {
     }
 
     #[inline]
+    pub fn has(&self, key: &str) -> bool {
+        if let Some(prop) = self.0.get(key) {
+            prop != &Prop::Null
+        } else {
+            false
+        }
+    }
+
+    #[inline]
+    pub fn take(&self, key: &str) -> Option<Prop> {
+        self.0.get(key).map(Clone::clone)
+    }
+    #[inline]
+    pub fn get(&self, key: &str) -> &Prop {
+        if let Some(prop) = self.0.get(key) {
+            prop
+        } else {
+            &PROP_NULL
+        }
+    }
+    #[inline]
+    pub fn get_mut(&mut self, key: &str) -> &mut Prop {
+        self.0.entry(key.into()).or_insert(Prop::Null)
+    }
+
+    #[inline]
     pub fn update<F>(&mut self, key: &str, f: F) -> &mut Self
     where
         F: Fn(&mut Prop),
@@ -32,9 +60,21 @@ impl Props {
         self.0.get_mut(key).map(f);
         self
     }
+}
+
+impl<'a> Index<&'a str> for Props {
+    type Output = Prop;
+
     #[inline]
-    pub fn take(&self, key: &str) -> Option<Prop> {
-        self.0.get(key).map(Clone::clone)
+    fn index(&self, key: &'a str) -> &Self::Output {
+        self.get(key)
+    }
+}
+
+impl<'a> IndexMut<&'a str> for Props {
+    #[inline]
+    fn index_mut(&mut self, key: &'a str) -> &mut Self::Output {
+        self.get_mut(key)
     }
 }
 
