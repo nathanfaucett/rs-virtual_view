@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use super::super::{prop_to_string_take, Props};
+use super::super::Props;
 use super::{Children, Component, ViewKind};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -17,7 +17,10 @@ pub enum View {
 impl View {
     #[inline]
     pub fn new(kind: ViewKind, mut props: Props, children: Children) -> Self {
-        let key = props.remove("key").map(prop_to_string_take);
+        let key = props.remove("key").map(|p| match p.take_string() {
+            Ok(string) => string,
+            Err(p) => p.to_string(),
+        });
 
         View::Data {
             kind: kind,
@@ -28,6 +31,10 @@ impl View {
     }
 
     #[inline]
+    pub fn new_empty() -> Self {
+        View::Text(String::new())
+    }
+    #[inline]
     pub fn new_text(text: &str) -> Self {
         View::Text(text.into())
     }
@@ -36,7 +43,7 @@ impl View {
         View::Data {
             kind: kind.into(),
             key: None,
-            props: Props::default(),
+            props: Props::new(),
             children: Children::new(),
         }
     }
@@ -48,7 +55,7 @@ impl View {
         View::Data {
             kind: component.into(),
             key: None,
-            props: Props::default(),
+            props: Props::new(),
             children: Children::new(),
         }
     }

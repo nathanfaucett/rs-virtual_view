@@ -112,7 +112,7 @@ impl Tree {
             self.unmount();
         }
 
-        let rendered_view = self.mount_view(self.0.root_id.clone(), 0, view, &mut transaction);
+        let rendered_view = self.mount_view(self.0.root_id.clone(), 0, 0, view, &mut transaction);
         transaction.mount(&self.0.root_id, rendered_view.into());
 
         self.transaction(transaction);
@@ -136,28 +136,30 @@ impl Tree {
     fn mount_view(
         &self,
         id: String,
+        depth: usize,
         index: usize,
         view: View,
         transaction: &mut Transaction,
     ) -> View {
         let mut node = if let Some(component) = view.component().map(Clone::clone) {
             Node::new_component(
+                depth,
                 index,
                 view,
-                Updater::new(id.clone(), self.clone()),
+                Updater::new(id.clone(), depth, self.clone()),
                 component,
             )
         } else {
-            Node::new_view(index, view)
+            Node::new_view(depth, index, view)
         };
 
         let rendered_view = {
             let node_lock = node.lock();
             let mut rendered_view = Self::render_view(&node_lock);
-            self.mount_view_internal(node_lock, &id, index, rendered_view, transaction)
+            self.mount_view_internal(node_lock, &id, depth, index, rendered_view, transaction)
         };
 
-        self.0.nodes.insert(id, node);
+        self.0.nodes.insert(id, depth, node);
 
         rendered_view
     }
@@ -167,6 +169,7 @@ impl Tree {
         &self,
         mut node_lock: MutexGuard<NodeInner>,
         id: &str,
+        depth: usize,
         index: usize,
         mut rendered_view: View,
         transaction: &mut Transaction,
@@ -182,7 +185,7 @@ impl Tree {
                 for (index, child) in children.iter_mut().enumerate() {
                     if child.is_data() {
                         let child_id = view_id(id, child.key(), index);
-                        *child = self.mount_view(child_id, index, child.clone(), transaction);
+                        *child = self.mount_view(child_id, 0, index, child.clone(), transaction);
                     }
                 }
             }
@@ -198,7 +201,8 @@ impl Tree {
     pub fn unmount(&self) {
         let mut transaction = Transaction::new();
 
-        if let Some(rendered_view) = self.unmount_view(&self.0.root_id, &mut transaction) {
+        if let Some(rendered_view) = self.unmount_view(self.0.root_id.clone(), 0, &mut transaction)
+        {
             transaction.unmount(&self.0.root_id, rendered_view.into());
             self.transaction(transaction);
         }
@@ -219,102 +223,63 @@ impl Tree {
     }
 
     #[inline]
-    fn unmount_view_internal(
+    fn unmount_view(
         &self,
-        remove_ids: &mut FnvHashSet<String>,
-        parent_id: &str,
-        index: usize,
-        child: &View,
+        id: String,
+        depth: usize,
         transaction: &mut Transaction,
-    ) {
-        match child {
-            &View::Data {
-                ref key,
-                ref props,
-                ref children,
-                ..
-            } => {
-                let child_id = view_id(parent_id, key.as_ref(), index);
-
-                self.unmount_props_events(&child_id, props, transaction);
-
-                for (index, child) in children.iter().enumerate() {
-                    self.unmount_view_internal(remove_ids, &child_id, index, child, transaction);
-                }
-
-                remove_ids.insert(child_id);
-            }
-            _ => (),
-        }
-    }
-
-    #[inline]
-    fn unmount_view(&self, id: &String, transaction: &mut Transaction) -> Option<View> {
-        let mut remove_ids = FnvHashSet::default();
-
-        let view = if let Some(node) = self.0.nodes.read().get(id) {
+    ) -> Option<View> {
+        if let Some(node) = self.0.nodes.remove_at_depth(id.clone(), depth) {
             let node_lock = node.lock();
-            let rendered_view = &node_lock.rendered_view;
+            let rendered_view = node_lock.rendered_view.clone();
 
-            remove_ids.insert(id.clone());
-
-            match rendered_view {
+            match &rendered_view {
                 &View::Data {
                     ref props,
                     ref children,
                     ..
                 } => {
-                    self.unmount_props_events(id, props, transaction);
+                    self.unmount_props_events(&id, props, transaction);
 
                     for (index, child) in children.iter().enumerate() {
-                        self.unmount_view_internal(&mut remove_ids, id, index, child, transaction);
+                        self.unmount_view(id.clone(), 0, transaction);
                     }
                 }
                 _ => (),
             }
 
-            Some(rendered_view.clone())
+            Some(rendered_view)
         } else {
             None
-        };
-
-        {
-            let mut nodes_write = self.0.nodes.write();
-
-            for id in remove_ids {
-                nodes_write.remove(&id);
-            }
         }
-
-        view
     }
 
     #[inline]
-    pub fn update<F>(&self, id: &str, f: F)
+    pub fn update<F>(&self, id: String, depth: usize, f: F)
     where
         F: Fn(&Props) -> Props,
     {
-        if let Some(node) = self.0.nodes.get(id) {
+        if let Some(node) = self.0.nodes.get_at_depth(id.clone(), depth) {
             let next_state = match &mut node.lock().kind {
                 &mut NodeKind::Component { ref mut state, .. } => Some(f(state)),
                 _ => None,
             };
 
             if let Some(next_state) = next_state {
-                self.update_view(id, node, next_state);
+                self.update_view(id, depth, node, next_state);
             }
         }
     }
 
     #[inline]
-    fn update_view(&self, id: &str, node: Node, next_state: Props) {
+    fn update_view(&self, id: String, depth: usize, node: Node, next_state: Props) {
         let mut node_lock = node.lock();
         let index = node_lock.index;
 
         let mut next_view = Self::render_view_with_state(&node_lock, &next_state);
 
         let mut transaction = Transaction::new();
-        let parent_id = parent_id(id);
+        let parent_id = parent_id(&id);
 
         self.update_view_internal(node_lock, &parent_id, index, next_view, &mut transaction);
 
@@ -356,7 +321,15 @@ impl Tree {
                     props: ref next_props,
                     children: ref next_children,
                 } => if prev_kind == next_kind && prev_key == next_key {
-                    println!("update data view");
+                    if next_kind.is_component() {
+                        println!("update data view subcomponent");
+                    } else {
+                        let children = diff_children(prev_children, next_children);
+
+                        for (index, next_child) in children.children.iter().enumerate() {
+                            let prev_child = prev_children.get(index);
+                        }
+                    }
                 } else {
                     println!("replace data view");
                 },

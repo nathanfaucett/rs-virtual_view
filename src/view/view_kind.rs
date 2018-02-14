@@ -85,6 +85,20 @@ impl fmt::Display for ViewKind {
 
 impl ViewKind {
     #[inline]
+    pub fn is_string(&self) -> bool {
+        match self {
+            &ViewKind::String(_) => true,
+            &ViewKind::Component(_) => false,
+        }
+    }
+    #[inline]
+    pub fn is_component(&self) -> bool {
+        match self {
+            &ViewKind::String(_) => false,
+            &ViewKind::Component(_) => true,
+        }
+    }
+    #[inline]
     pub fn type_id(&self) -> TypeId {
         match self {
             &ViewKind::String(_) => TypeId::of::<String>(),

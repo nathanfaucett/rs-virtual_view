@@ -1,21 +1,15 @@
 use super::super::Props;
-use super::Tree;
+use super::Renderer;
 
 #[derive(Clone)]
 pub struct Updater {
-    id: String,
-    depth: usize,
-    tree: Tree,
+    renderer: Renderer,
 }
 
 impl Updater {
     #[inline]
-    pub(super) fn new(id: String, depth: usize, tree: Tree) -> Self {
-        Updater {
-            id: id,
-            depth: depth,
-            tree: tree,
-        }
+    pub fn new(renderer: Renderer) -> Self {
+        Updater { renderer: renderer }
     }
 
     #[inline]
@@ -23,7 +17,7 @@ impl Updater {
     where
         F: Fn(&Props) -> Props,
     {
-        self.tree.update(self.id.clone(), self.depth, f);
+
     }
 
     #[inline]

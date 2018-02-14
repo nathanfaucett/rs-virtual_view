@@ -74,52 +74,52 @@ impl Prop {
     }
 
     #[inline]
-    pub fn take_null(self) -> Option<()> {
+    pub fn take_null(self) -> Result<(), Self> {
         match self {
-            Prop::Null => Some(()),
-            _ => None,
+            Prop::Null => Ok(()),
+            _ => Err(self),
         }
     }
     #[inline]
-    pub fn take_boolean(self) -> Option<bool> {
+    pub fn take_boolean(self) -> Result<bool, Self> {
         match self {
-            Prop::Boolean(v) => Some(v),
-            _ => None,
+            Prop::Boolean(v) => Ok(v),
+            _ => Err(self),
         }
     }
     #[inline]
-    pub fn take_number(self) -> Option<Number> {
+    pub fn take_number(self) -> Result<Number, Self> {
         match self {
-            Prop::Number(v) => Some(v),
-            _ => None,
+            Prop::Number(v) => Ok(v),
+            _ => Err(self),
         }
     }
     #[inline]
-    pub fn take_string(self) -> Option<String> {
+    pub fn take_string(self) -> Result<String, Self> {
         match self {
-            Prop::String(v) => Some(v),
-            _ => None,
+            Prop::String(v) => Ok(v),
+            _ => Err(self),
         }
     }
     #[inline]
-    pub fn take_function(self) -> Option<Function> {
+    pub fn take_function(self) -> Result<Function, Self> {
         match self {
-            Prop::Function(v) => Some(v),
-            _ => None,
+            Prop::Function(v) => Ok(v),
+            _ => Err(self),
         }
     }
     #[inline]
-    pub fn take_array(self) -> Option<Array> {
+    pub fn take_array(self) -> Result<Array, Self> {
         match self {
-            Prop::Array(v) => Some(v),
-            _ => None,
+            Prop::Array(v) => Ok(v),
+            _ => Err(self),
         }
     }
     #[inline]
-    pub fn take_object(self) -> Option<Props> {
+    pub fn take_object(self) -> Result<Props, Self> {
         match self {
-            Prop::Object(v) => Some(v),
-            _ => None,
+            Prop::Object(v) => Ok(v),
+            _ => Err(self),
         }
     }
 

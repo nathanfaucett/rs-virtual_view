@@ -141,10 +141,11 @@ pub fn diff_children<'a>(prev_children: &'a [View], next_children: &'a [View]) -
     }
 }
 
+#[derive(Debug)]
 pub struct DiffChildren<'a> {
-    children: Vec<Option<&'a View>>,
-    removes: Vec<(usize, Option<&'a String>)>,
-    inserts: Vec<(Option<&'a String>, usize)>,
+    pub children: Vec<Option<&'a View>>,
+    pub removes: Vec<(usize, Option<&'a String>)>,
+    pub inserts: Vec<(Option<&'a String>, usize)>,
 }
 
 impl<'a> From<&'a [View]> for DiffChildren<'a> {

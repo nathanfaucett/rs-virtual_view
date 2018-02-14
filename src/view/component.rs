@@ -8,34 +8,35 @@ pub trait Component: 'static + Any {
 
     #[inline(always)]
     fn name(&self) -> &'static str {
-        "Component"
+        "Unknown"
     }
 
     #[inline]
     fn initial_state(&self, _props: &Props) -> Props {
-        Props::default()
+        Props::new()
     }
 
     #[inline(always)]
-    fn mount(&self) {}
+    fn will_mount(&self, updater: &Updater) {}
     #[inline(always)]
-    fn unmount(&self) {}
+    fn will_unmount(&self) {}
     #[inline(always)]
-    fn update(&self) {}
+    fn will_update(&self) {}
+
     #[inline(always)]
     fn receive_props(&self, _state: Props, _props: &Props, _children: &Children) {}
 
     #[inline]
     fn should_update(
         &self,
-        _prev_state: &Props,
-        _prev_props: &Props,
-        _prev_children: &Children,
+        prev_state: &Props,
+        prev_props: &Props,
+        prev_children: &Children,
 
-        _next_state: &Props,
-        _next_props: &Props,
-        _next_children: &Children,
+        next_state: &Props,
+        next_props: &Props,
+        next_children: &Children,
     ) -> bool {
-        true
+        !(prev_state == next_state && prev_props == next_props && prev_children == next_children)
     }
 }

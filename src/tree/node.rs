@@ -13,6 +13,7 @@ pub enum NodeKind {
 }
 
 pub struct NodeInner {
+    pub(super) depth: usize,
     pub(super) index: usize,
     pub(super) view: View,
     pub(super) rendered_view: View,
@@ -24,8 +25,9 @@ pub struct Node(Arc<Mutex<NodeInner>>);
 
 impl Node {
     #[inline]
-    pub fn new_view(index: usize, view: View) -> Self {
+    pub fn new_view(depth: usize, index: usize, view: View) -> Self {
         Node(Arc::new(Mutex::new(NodeInner {
+            depth: depth,
             index: index,
             view: view,
             rendered_view: View::Text(String::new()),
@@ -34,6 +36,7 @@ impl Node {
     }
     #[inline]
     pub fn new_component(
+        depth: usize,
         index: usize,
         view: View,
         updater: Updater,
@@ -42,6 +45,7 @@ impl Node {
         let state = component.initial_state(view.props().unwrap());
 
         Node(Arc::new(Mutex::new(NodeInner {
+            depth: depth,
             index: index,
             view: view,
             rendered_view: View::Text(String::new()),

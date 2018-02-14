@@ -3,7 +3,7 @@ extern crate serde_json;
 extern crate view;
 
 use serde_json::{Map, Value};
-use view::{Children, Component, Event, Props, Tree, Updater, View};
+use view::{Children, Component, Event, Props, Renderer, Updater, View};
 
 struct Button;
 
@@ -113,25 +113,25 @@ impl Event for TestEvent {
 
 #[test]
 fn test_component_mount_unmount() {
-    let (tree, receiver) = Tree::new(view! {
+    let (renderer, receiver) = Renderer::new(view! {
         <{Counter} count=0/>
     });
-    let event_manager = tree.event_manager();
+    let event_manager = renderer.event_manager();
 
     event_manager.dispatch(".0.1", &mut TestEvent::new("onclick"));
     event_manager.dispatch(".0.2", &mut TestEvent::new("onclick"));
 
-    tree.unmount();
+    //renderer.unmount();
 
     let _mount_transaction = receiver.recv().unwrap();
-    let _add_update_transaction = receiver.recv().unwrap();
-    let _sub_update_transaction = receiver.recv().unwrap();
-    let _unmount_transaction = receiver.recv().unwrap();
+    //let _add_update_transaction = receiver.recv().unwrap();
+    //let _sub_update_transaction = receiver.recv().unwrap();
+    //let _unmount_transaction = receiver.recv().unwrap();
 
     println!("mount {:#?}", _mount_transaction);
-    println!("add {:#?}", _add_update_transaction);
-    println!("sub {:#?}", _sub_update_transaction);
-    println!("unmount {:#?}", _unmount_transaction);
+    //println!("add {:#?}", _add_update_transaction);
+    //println!("sub {:#?}", _sub_update_transaction);
+    //println!("unmount {:#?}", _unmount_transaction);
 
     assert!(false);
 }
