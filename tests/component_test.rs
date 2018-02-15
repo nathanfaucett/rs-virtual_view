@@ -121,17 +121,17 @@ fn test_component_mount_unmount() {
     event_manager.dispatch(".0.1", &mut TestEvent::new("onclick"));
     event_manager.dispatch(".0.2", &mut TestEvent::new("onclick"));
 
-    //renderer.unmount();
+    renderer.unmount();
 
     let _mount_transaction = receiver.recv().unwrap();
-    //let _add_update_transaction = receiver.recv().unwrap();
-    //let _sub_update_transaction = receiver.recv().unwrap();
-    //let _unmount_transaction = receiver.recv().unwrap();
+    let _add_update_transaction = receiver.recv().unwrap();
+    let _sub_update_transaction = receiver.recv().unwrap();
+    let _unmount_transaction = receiver.recv().unwrap();
 
     println!("mount {:#?}", _mount_transaction);
-    //println!("add {:#?}", _add_update_transaction);
-    //println!("sub {:#?}", _sub_update_transaction);
-    //println!("unmount {:#?}", _unmount_transaction);
+    println!("add {:#?}", _add_update_transaction);
+    println!("sub {:#?}", _sub_update_transaction);
+    println!("unmount {:#?}", _unmount_transaction);
 
     assert!(false);
 }
