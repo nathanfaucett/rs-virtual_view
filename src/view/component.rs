@@ -17,14 +17,14 @@ pub trait Component: 'static + Any {
     }
 
     #[inline(always)]
-    fn will_mount(&self, updater: &Updater) {}
+    fn will_mount(&self, _updater: &Updater) {}
     #[inline(always)]
     fn will_unmount(&self) {}
     #[inline(always)]
     fn will_update(&self) {}
 
     #[inline(always)]
-    fn receive_props(&self, _state: Props, _props: &Props, _children: &Children) {}
+    fn receive_props(&self, _state: &Props, _props: &Props, _children: &Children) {}
 
     #[inline]
     fn should_update(

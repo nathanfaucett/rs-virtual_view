@@ -3,7 +3,7 @@ use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use fnv::{FnvHashMap, FnvHashSet};
 
-use super::super::{is_ancestor_id_of, traverse_path};
+use super::super::traverse_path;
 use super::Event;
 
 #[derive(Clone)]

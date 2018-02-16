@@ -143,6 +143,23 @@ impl View {
             } => Some(children),
         }
     }
+    #[inline]
+    pub fn clone_no_children(&self) -> Self {
+        match self {
+            &View::Text(ref string) => View::Text(string.clone()),
+            &View::Data {
+                ref kind,
+                ref key,
+                ref props,
+                ..
+            } => View::Data {
+                kind: kind.clone(),
+                key: key.clone(),
+                props: props.clone(),
+                children: Children::new(),
+            },
+        }
+    }
 }
 
 impl<'a> From<&'a View> for View {

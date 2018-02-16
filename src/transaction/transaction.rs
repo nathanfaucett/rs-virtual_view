@@ -21,6 +21,11 @@ impl Transaction {
     }
 
     #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.events.is_empty() && self.removes.is_empty() && self.patches.is_empty()
+    }
+
+    #[inline]
     pub fn mount(&mut self, id: &str, view: RawView) {
         self.append(id.into(), Patch::Mount(view));
     }

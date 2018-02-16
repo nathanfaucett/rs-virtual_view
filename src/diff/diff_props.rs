@@ -23,6 +23,7 @@ pub fn diff_props_object(prev_object: &Props, next_object: &Props) -> Option<Pro
             &Prop::Null => {
                 result.insert(key.clone(), Prop::Null);
             }
+            &Prop::Function(_) => (),
             next_value => if prev_value != next_value {
                 result.insert(key.clone(), diff_props(prev_value, next_value));
             },

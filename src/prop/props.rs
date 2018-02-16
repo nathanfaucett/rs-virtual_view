@@ -1,10 +1,11 @@
-use fnv::FnvHashMap;
-
 use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::hash::{Hash, Hasher};
 use std::iter::FromIterator;
 
-use super::Prop;
+use fnv::FnvHashMap;
+use serde_json::{Map, Value};
+
+use super::{props_to_json, Prop};
 
 const PROP_NULL: Prop = Prop::Null;
 
@@ -161,5 +162,19 @@ where
             m.insert(k, v);
         }
         m
+    }
+}
+
+impl Into<Map<String, Value>> for Props {
+    #[inline]
+    fn into(self) -> Map<String, Value> {
+        props_to_json(&self)
+    }
+}
+
+impl<'a> Into<Map<String, Value>> for &'a Props {
+    #[inline]
+    fn into(self) -> Map<String, Value> {
+        props_to_json(self)
     }
 }

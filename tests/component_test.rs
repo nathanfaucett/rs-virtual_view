@@ -2,8 +2,10 @@ extern crate serde_json;
 #[macro_use]
 extern crate view;
 
+use std::sync::mpsc::channel;
+
 use serde_json::{Map, Value};
-use view::{Children, Component, Event, Props, Renderer, Updater, View};
+use view::{Children, Component, Event, EventManager, Props, Renderer, Updater, View};
 
 struct Button;
 
@@ -113,10 +115,16 @@ impl Event for TestEvent {
 
 #[test]
 fn test_component_mount_unmount() {
-    let (renderer, receiver) = Renderer::new(view! {
-        <{Counter} count=0/>
-    });
-    let event_manager = renderer.event_manager();
+    let (sender, receiver) = channel();
+
+    let event_manager = EventManager::new();
+    let renderer = Renderer::new(
+        view! {
+            <{Counter} count=0/>
+        },
+        event_manager.clone(),
+        sender,
+    );
 
     event_manager.dispatch(".0.1", &mut TestEvent::new("onclick"));
     event_manager.dispatch(".0.2", &mut TestEvent::new("onclick"));

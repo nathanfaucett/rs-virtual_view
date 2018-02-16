@@ -1,16 +1,15 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::mpsc::{channel, Receiver, Sender};
 
 use super::super::{EventManager, Props, Transaction, View};
-use super::{Node, Nodes};
+use super::{Handler, Node, Nodes};
 
 static ROOT_ID: AtomicUsize = AtomicUsize::new(0);
 
 pub struct RendererInner {
     root_id: String,
     root_index: usize,
-    sender: Sender<Transaction>,
+    handler: Box<Handler>,
     nodes: Nodes,
     event_manager: EventManager,
 }
@@ -20,8 +19,10 @@ pub struct Renderer(Arc<RendererInner>);
 
 impl Renderer {
     #[inline]
-    pub fn new(view: View) -> (Self, Receiver<Transaction>) {
-        let (sender, receiver) = channel();
+    pub fn new<H>(view: View, event_manager: EventManager, handler: H) -> Self
+    where
+        H: Handler,
+    {
         let mut root_id = String::new();
         let root_index = ROOT_ID.fetch_add(1, Ordering::SeqCst);
 
@@ -31,14 +32,14 @@ impl Renderer {
         let renderer = Renderer(Arc::new(RendererInner {
             root_index: root_index,
             root_id: root_id,
-            sender: sender,
+            handler: Box::new(handler),
             nodes: Nodes::new(),
-            event_manager: EventManager::new(),
+            event_manager: event_manager,
         }));
 
         renderer.mount(view);
 
-        (renderer, receiver)
+        renderer
     }
 
     #[inline]
@@ -59,19 +60,14 @@ impl Renderer {
     }
 
     #[inline(always)]
-    fn transaction(&self, transaction: Transaction) {
-        let _ = self.0
-            .sender
-            .send(transaction)
-            .expect("failed to send transaction");
+    pub(super) fn transaction(&self, transaction: Transaction) {
+        self.0.handler.handle(transaction);
     }
 
     #[inline]
     pub fn mount(&self, view: View) {
         let mut transaction = Transaction::new();
         let node = Node::new(self.0.root_index, 0, self.0.root_id.clone(), self, view);
-
-        self.0.nodes.insert(self.0.root_id.clone(), node.clone());
 
         let view = node.mount(&mut transaction);
         transaction.mount(&self.0.root_id, view.into());
@@ -100,9 +96,18 @@ impl Renderer {
     where
         F: Fn(&Props) -> Props,
     {
-        let mut transaction = Transaction::new();
-        f(&Props::new());
-        self.transaction(transaction);
+        if let Some(node) = self.0.nodes.get_at_depth(id, depth) {
+            let mut node_lock = node.lock();
+
+            node_lock.update_state(f);
+
+            let prev_view = node_lock.view.clone();
+            let next_view = node_lock.view.clone();
+
+            let mut transaction = Transaction::new();
+            node_lock.update(prev_view, next_view, &mut transaction);
+            self.transaction(transaction);
+        }
     }
 
     #[inline]
@@ -165,7 +170,7 @@ impl Renderer {
         }
         for (k, v) in prev_props {
             if k.starts_with("on") {
-                if let Some(f) = v.function() {
+                if let Some(_) = v.function() {
                     if !next_props.has(k) {
                         transaction.remove_event(id, k);
                         event_manager.remove(id, k);
