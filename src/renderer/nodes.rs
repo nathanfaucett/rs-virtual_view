@@ -28,11 +28,6 @@ impl Nodes {
     }
 
     #[inline]
-    pub fn insert(&self, id: String, node: Node) {
-        self.write().insert((id, 0), node);
-    }
-
-    #[inline]
     pub fn remove_at_depth(&self, id: String, depth: usize) -> bool {
         let mut write = self.write();
         let mut current_depth = depth;
@@ -43,14 +38,10 @@ impl Nodes {
 
         current_depth != depth
     }
-    #[inline]
-    pub fn remove(&self, id: String) -> bool {
-        self.remove_at_depth(id, 0)
-    }
 
     #[inline]
     pub fn get_at_depth(&self, id: String, depth: usize) -> Option<Node> {
-        self.write().get(&(id, depth)).map(Clone::clone)
+        self.read().get(&(id, depth)).map(Clone::clone)
     }
     #[inline]
     pub fn get(&self, id: String) -> Option<Node> {

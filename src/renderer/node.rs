@@ -5,7 +5,7 @@ use super::super::{diff_children, diff_props_object, view_id, Children, Componen
 use super::Renderer;
 
 /*
-pub enum NodeInnerState {
+pub enum NodeState {
     Mounting,
     Mounted,
     Updating,
@@ -15,7 +15,7 @@ pub enum NodeInnerState {
 }
 */
 
-pub enum NodeInnerKind {
+pub enum NodeKind {
     View,
     Component {
         partial_states: Vec<Props>,
@@ -32,7 +32,7 @@ pub struct NodeInner {
     pub id: String,
     pub renderer: Renderer,
     pub view: View,
-    pub kind: NodeInnerKind,
+    pub kind: NodeKind,
 }
 
 impl NodeInner {
@@ -43,7 +43,7 @@ impl NodeInner {
             let updater = Updater::new(id.clone(), depth, renderer.clone());
             let rendered_view = Self::render_component_view(&view, &state, &component, &updater);
 
-            NodeInnerKind::Component {
+            NodeKind::Component {
                 partial_states: Vec::new(),
                 node: Node::new(index, depth + 1, id.clone(), renderer, rendered_view),
                 updater: updater,
@@ -51,7 +51,7 @@ impl NodeInner {
                 component: component,
             }
         } else {
-            NodeInnerKind::View
+            NodeKind::View
         };
 
         NodeInner {
@@ -70,7 +70,7 @@ impl NodeInner {
         F: Fn(&Props) -> Props,
     {
         match &mut self.kind {
-            &mut NodeInnerKind::Component {
+            &mut NodeKind::Component {
                 ref state,
                 ref mut partial_states,
                 ..
@@ -84,7 +84,7 @@ impl NodeInner {
     #[inline]
     pub fn next_state(&mut self) -> Props {
         match &mut self.kind {
-            &mut NodeInnerKind::Component {
+            &mut NodeKind::Component {
                 ref mut partial_states,
                 ..
             } => {
@@ -121,15 +121,15 @@ impl NodeInner {
     #[inline]
     fn rendered_view(&self) -> View {
         match &self.kind {
-            &NodeInnerKind::Component { ref node, .. } => node.rendered_view(),
-            &NodeInnerKind::View => self.view.clone(),
+            &NodeKind::Component { ref node, .. } => node.rendered_view(),
+            &NodeKind::View => self.view.clone(),
         }
     }
 
     #[inline]
     pub fn mount(&mut self, transaction: &mut Transaction) -> View {
         match &self.kind {
-            &NodeInnerKind::Component {
+            &NodeKind::Component {
                 ref updater,
                 ref node,
                 ref component,
@@ -152,7 +152,7 @@ impl NodeInner {
 
                 view
             }
-            &NodeInnerKind::View => {
+            &NodeKind::View => {
                 if let Some(props) = self.view.props() {
                     self.renderer
                         .mount_props_events(&self.id, props, transaction);
@@ -165,7 +165,7 @@ impl NodeInner {
     #[inline]
     pub fn unmount(&mut self, transaction: &mut Transaction) -> View {
         let view = match &self.kind {
-            &NodeInnerKind::Component {
+            &NodeKind::Component {
                 ref node,
                 ref component,
                 ..
@@ -189,7 +189,7 @@ impl NodeInner {
 
                 view
             }
-            &NodeInnerKind::View => {
+            &NodeKind::View => {
                 if let Some(props) = self.view.props() {
                     self.renderer
                         .unmount_props_events(&self.id, props, transaction);
@@ -206,7 +206,7 @@ impl NodeInner {
     }
 
     #[inline]
-    pub fn receive(&mut self, next_view: View, transaction: &mut Transaction) -> (bool, View) {
+    pub fn receive(&mut self, next_view: View, transaction: &mut Transaction) -> View {
         let prev_view = self.view.clone();
         self.update(prev_view, next_view, transaction)
     }
@@ -217,11 +217,11 @@ impl NodeInner {
         prev_view: View,
         next_view: View,
         transaction: &mut Transaction,
-    ) -> (bool, View) {
+    ) -> View {
         let next_state = self.next_state();
 
         match &mut self.kind {
-            &mut NodeInnerKind::Component {
+            &mut NodeKind::Component {
                 ref mut state,
                 ref updater,
                 ref component,
@@ -263,36 +263,36 @@ impl NodeInner {
                         transaction,
                     )
                 } else {
-                    (false, node.rendered_view())
+                    node.rendered_view()
                 }
             }
-            &mut NodeInnerKind::View => if prev_view != next_view {
+            &mut NodeKind::View => if prev_view != next_view {
                 let mut view = next_view.clone_no_children();
 
                 match &next_view {
                     &View::Data {
-                        ref props,
-                        ref children,
+                        props: ref next_props,
+                        children: ref next_children,
                         ..
                     } => {
                         let mut view_children = view.children_mut().unwrap();
 
                         let empty_children = Children::new();
                         let prev_children = prev_view.children().unwrap_or(&empty_children);
-                        let next_children = diff_children(prev_children, children);
+                        let children_diff = diff_children(prev_children, next_children);
 
                         let empty_props = Props::new();
                         let prev_props = prev_view.props().unwrap_or(&empty_props);
 
-                        if let Some(diff_props) = diff_props_object(prev_props, props) {
+                        if let Some(diff_props) = diff_props_object(prev_props, next_props) {
                             transaction.props(&self.id, prev_props.into(), diff_props.into());
                         }
                         /* TODO: defer update so event manager lock is released
                         self.renderer
-                            .update_props_events(&self.id, prev_props, props, transaction);
+                            .update_props_events(&self.id, prev_props, next_props, transaction);
                             */
 
-                        for (index, next_view_option) in next_children.children.iter().enumerate() {
+                        for (index, next_view_option) in children_diff.children.iter().enumerate() {
                             let prev_view_option = prev_children.get(index);
 
                             if let &Some(next_view) = next_view_option {
@@ -307,9 +307,7 @@ impl NodeInner {
                                     );
 
                                     if let Some(node) = self.renderer.nodes().get(next_view_id) {
-                                        let (updated, view) =
-                                            node.receive(next_view.clone(), transaction);
-
+                                        let view = node.receive(next_view.clone(), transaction);
                                         view_children.push(view);
                                     } else {
                                         // should be text view
@@ -345,9 +343,9 @@ impl NodeInner {
 
                 self.view = view.clone();
 
-                (true, view)
+                view
             } else {
-                (false, self.view.clone())
+                self.view.clone()
             },
         }
     }
@@ -391,16 +389,7 @@ impl Node {
         self.lock().unmount(transaction)
     }
     #[inline]
-    pub fn receive(&self, next_view: View, transaction: &mut Transaction) -> (bool, View) {
+    pub fn receive(&self, next_view: View, transaction: &mut Transaction) -> View {
         self.lock().receive(next_view, transaction)
-    }
-    #[inline]
-    pub fn update(
-        &self,
-        prev_view: View,
-        next_view: View,
-        transaction: &mut Transaction,
-    ) -> (bool, View) {
-        self.lock().update(prev_view, next_view, transaction)
     }
 }

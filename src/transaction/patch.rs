@@ -10,3 +10,45 @@ pub enum Patch {
     Order(Order),
     Props(Map<String, Value>, Map<String, Value>),
 }
+
+impl Patch {
+    #[inline]
+    pub fn is_mount(&self) -> bool {
+        match self {
+            &Patch::Mount(_) => true,
+            _ => false,
+        }
+    }
+
+    #[inline]
+    pub fn is_insert(&self) -> bool {
+        match self {
+            &Patch::Insert(_, _, _) => true,
+            _ => false,
+        }
+    }
+
+    #[inline]
+    pub fn is_replace(&self) -> bool {
+        match self {
+            &Patch::Replace(_, _) => true,
+            _ => false,
+        }
+    }
+
+    #[inline]
+    pub fn is_order(&self) -> bool {
+        match self {
+            &Patch::Order(_) => true,
+            _ => false,
+        }
+    }
+
+    #[inline]
+    pub fn is_props(&self) -> bool {
+        match self {
+            &Patch::Props(_, _) => true,
+            _ => false,
+        }
+    }
+}

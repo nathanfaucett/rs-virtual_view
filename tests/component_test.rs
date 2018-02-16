@@ -4,8 +4,8 @@ extern crate view;
 
 use std::sync::mpsc::channel;
 
-use serde_json::{Map, Value};
-use view::{Children, Component, Event, EventManager, Props, Renderer, Updater, View};
+use serde_json::Map;
+use view::{Children, Component, Event, EventManager, Props, Renderer, SimpleEvent, Updater, View};
 
 struct Button;
 
@@ -79,42 +79,8 @@ impl Component for Counter {
     }
 }
 
-pub struct TestEvent {
-    name: String,
-    data: Map<String, Value>,
-    propagation: bool,
-}
-
-impl TestEvent {
-    fn new<T>(name: T) -> Self
-    where
-        T: ToString,
-    {
-        TestEvent {
-            name: name.to_string(),
-            data: Map::new(),
-            propagation: true,
-        }
-    }
-}
-
-impl Event for TestEvent {
-    fn name(&self) -> &String {
-        &self.name
-    }
-    fn data(&self) -> &Map<String, Value> {
-        &self.data
-    }
-    fn propagation(&self) -> bool {
-        self.propagation
-    }
-    fn stop_propagation(&mut self) {
-        self.propagation = false;
-    }
-}
-
 #[test]
-fn test_component_mount_unmount() {
+fn test_component_transaction() {
     let (sender, receiver) = channel();
 
     let event_manager = EventManager::new();
@@ -126,20 +92,18 @@ fn test_component_mount_unmount() {
         sender,
     );
 
-    event_manager.dispatch(".0.1", &mut TestEvent::new("onclick"));
-    event_manager.dispatch(".0.2", &mut TestEvent::new("onclick"));
+    event_manager.dispatch(".0.1", &mut SimpleEvent::new("onclick", Map::new()));
+    event_manager.dispatch(".0.2", &mut SimpleEvent::new("onclick", Map::new()));
 
     renderer.unmount();
 
-    let _mount_transaction = receiver.recv().unwrap();
-    let _add_update_transaction = receiver.recv().unwrap();
-    let _sub_update_transaction = receiver.recv().unwrap();
-    let _unmount_transaction = receiver.recv().unwrap();
+    let mount_transaction = receiver.recv().unwrap();
+    let add_update_transaction = receiver.recv().unwrap();
+    let sub_update_transaction = receiver.recv().unwrap();
+    let unmount_transaction = receiver.recv().unwrap();
 
-    println!("mount {:#?}", _mount_transaction);
-    println!("add {:#?}", _add_update_transaction);
-    println!("sub {:#?}", _sub_update_transaction);
-    println!("unmount {:#?}", _unmount_transaction);
-
-    assert!(false);
+    assert!(&mount_transaction.patches()[".0"][0].is_mount());
+    assert!(&add_update_transaction.patches()[".0.0.0"][0].is_replace());
+    assert!(&sub_update_transaction.patches()[".0.0.0"][0].is_replace());
+    assert!(&unmount_transaction.removes().contains_key(".0"));
 }
