@@ -287,10 +287,13 @@ impl NodeInner {
                         if let Some(diff_props) = diff_props_object(prev_props, next_props) {
                             transaction.props(&self.id, prev_props.into(), diff_props.into());
                         }
-                        /* TODO: defer update so event manager lock is released
-                        self.renderer
-                            .update_props_events(&self.id, prev_props, next_props, transaction);
-                            */
+
+                        self.renderer.update_props_events(
+                            &self.id,
+                            prev_props,
+                            next_props,
+                            transaction,
+                        );
 
                         for (index, next_view_option) in children_diff.children.iter().enumerate() {
                             let prev_view_option = prev_children.get(index);
@@ -310,7 +313,6 @@ impl NodeInner {
                                         let view = node.receive(next_view.clone(), transaction);
                                         view_children.push(view);
                                     } else {
-                                        // should be text view
                                         transaction.replace(
                                             &prev_view_id,
                                             prev_view.clone().into(),

@@ -34,7 +34,15 @@ impl EventManager {
 
     #[inline]
     pub fn dispatch(&self, id: &str, event: &mut Event) {
-        self.read().dispatch(id, event)
+        let event_funcs = self.read().event_funcs(id, event);
+
+        for func in event_funcs {
+            (&*func)(event);
+
+            if !event.propagation() {
+                break;
+            }
+        }
     }
 }
 
@@ -87,14 +95,18 @@ impl EventManagerInner {
     }
 
     #[inline]
-    pub fn dispatch(&self, id: &str, event: &mut Event) {
+    pub fn event_funcs(&self, id: &str, event: &mut Event) -> Vec<Arc<Fn(&mut Event)>> {
+        let mut funcs = Vec::new();
+
         if let Some(events) = self.0.get(event.name()) {
             traverse_path(id, "", false, true, |id, _| {
                 if let Some(func) = events.get(id) {
-                    (&*func)(event);
+                    funcs.push(func.clone());
                 }
-                event.propagation()
+                true
             });
         }
+
+        funcs
     }
 }
