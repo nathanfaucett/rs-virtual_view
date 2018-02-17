@@ -28,6 +28,15 @@ impl Props {
     }
 
     #[inline]
+    pub fn set<K, V>(&mut self, key: K, value: V)
+    where
+        K: ToString,
+        V: Into<Prop>,
+    {
+        self.insert(key, value);
+    }
+
+    #[inline]
     pub fn has(&self, key: &str) -> bool {
         if let Some(prop) = self.0.get(key) {
             prop != &Prop::Null

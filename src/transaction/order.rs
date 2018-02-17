@@ -24,4 +24,9 @@ impl Order {
     pub fn inserts(&self) -> &[(Option<String>, usize)] {
         &*self.inserts
     }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.removes.is_empty() && self.inserts.is_empty()
+    }
 }

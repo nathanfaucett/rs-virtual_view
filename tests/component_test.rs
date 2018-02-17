@@ -93,16 +93,19 @@ fn test_component_transaction() {
 
     event_manager.dispatch(".0.1", &mut SimpleEvent::new("onclick", Map::new()));
     event_manager.dispatch(".0.2", &mut SimpleEvent::new("onclick", Map::new()));
+    event_manager.dispatch(".0.1", &mut SimpleEvent::new("onclick", Map::new()));
 
     renderer.unmount();
 
     let mount_transaction = receiver.recv().unwrap();
-    let add_update_transaction = receiver.recv().unwrap();
+    let add0_update_transaction = receiver.recv().unwrap();
     let sub_update_transaction = receiver.recv().unwrap();
+    let add1_update_transaction = receiver.recv().unwrap();
     let unmount_transaction = receiver.recv().unwrap();
 
     assert!(&mount_transaction.patches()[".0"][0].is_mount());
-    assert!(&add_update_transaction.patches()[".0.0.0"][0].is_replace());
+    assert!(&add0_update_transaction.patches()[".0.0.0"][0].is_replace());
     assert!(&sub_update_transaction.patches()[".0.0.0"][0].is_replace());
+    assert!(&add1_update_transaction.patches()[".0.0.0"][0].is_replace());
     assert!(&unmount_transaction.removes().contains_key(".0"));
 }

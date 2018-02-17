@@ -421,6 +421,32 @@ impl PartialEq for Prop {
     }
 }
 
+impl PartialEq<str> for Prop {
+    #[inline]
+    fn eq(&self, other: &str) -> bool {
+        match self {
+            &Prop::String(ref string) => string == other,
+            _ => &self.to_string() == other,
+        }
+    }
+}
+
+macro_rules! impl_partial_eq_number {
+    ($($T:ty),*) => (
+        $(impl PartialEq<$T> for Prop {
+            #[inline]
+            fn eq(&self, other: &$T) -> bool {
+                match self {
+                    &Prop::Number(ref n) => *n == *other as f64,
+                    _ => self.to_string() == other.to_string(),
+                }
+            }
+        })*
+    );
+}
+
+impl_partial_eq_number!(u8, u16, u32, u64, usize, i8, i16, i32, i64, isize, f32, f64);
+
 impl Hash for Prop {
     #[inline]
     fn hash<H>(&self, state: &mut H)

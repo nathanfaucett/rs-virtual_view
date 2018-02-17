@@ -1,6 +1,6 @@
 use fnv::FnvHashMap;
 
-use super::super::View;
+use super::super::{Order, View};
 
 #[inline]
 pub fn diff_children<'a>(prev_children: &'a [View], next_children: &'a [View]) -> DiffChildren<'a> {
@@ -149,7 +149,7 @@ pub struct DiffChildren<'a> {
 }
 
 impl<'a> From<&'a [View]> for DiffChildren<'a> {
-    #[inline(always)]
+    #[inline]
     fn from(children: &'a [View]) -> Self {
         DiffChildren {
             children: children.iter().map(|v| Some(v)).collect(),
@@ -181,6 +181,20 @@ impl<'a> DiffChildren<'a> {
             }
         }
         self
+    }
+
+    #[inline]
+    pub fn into_order(self) -> Order {
+        Order::new(
+            self.removes
+                .into_iter()
+                .map(|(k, v)| (k, v.map(|v| v.clone())))
+                .collect(),
+            self.inserts
+                .into_iter()
+                .map(|(k, v)| (k.map(|k| k.clone()), v))
+                .collect(),
+        )
     }
 }
 
