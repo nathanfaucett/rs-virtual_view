@@ -54,6 +54,18 @@ impl Props {
     }
 
     #[inline]
+    pub fn extend<I, K, V>(&mut self, iter: I)
+    where
+        I: IntoIterator<Item = (K, V)>,
+        K: ToString,
+        V: Into<Prop>,
+    {
+        for (k, v) in iter.into_iter() {
+            self.insert(k, v);
+        }
+    }
+
+    #[inline]
     pub fn update<F>(&mut self, key: &str, f: F) -> &mut Self
     where
         F: Fn(&mut Prop),

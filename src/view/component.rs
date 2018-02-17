@@ -11,32 +11,47 @@ pub trait Component: 'static + Any {
         "Unknown"
     }
 
+    /// return the inital state of the component
     #[inline]
     fn initial_state(&self, _props: &Props) -> Props {
         Props::new()
     }
 
+    /// called before mount
     #[inline(always)]
-    fn will_mount(&self, _updater: &Updater) {}
+    fn will_mount(&self) {}
+
+    /// called before unmount
     #[inline(always)]
     fn will_unmount(&self) {}
+
+    /// called before update
     #[inline(always)]
     fn will_update(&self) {}
 
+    /// called when component receives new state, props, or children
     #[inline(always)]
     fn receive_props(&self, _state: &Props, _props: &Props, _children: &Children) {}
 
+    /// if component needs update return true, defaults to true
     #[inline]
     fn should_update(
         &self,
-        prev_state: &Props,
-        prev_props: &Props,
-        prev_children: &Children,
+        _prev_state: &Props,
+        _prev_props: &Props,
+        _prev_children: &Children,
 
-        next_state: &Props,
-        next_props: &Props,
-        next_children: &Children,
+        _next_state: &Props,
+        _next_props: &Props,
+        _next_children: &Children,
     ) -> bool {
-        !(prev_state == next_state && prev_props == next_props && prev_children == next_children)
+        true
+    }
+}
+
+impl PartialEq for Component {
+    #[inline]
+    fn eq(&self, other: &Component) -> bool {
+        self.get_type_id() == other.get_type_id()
     }
 }

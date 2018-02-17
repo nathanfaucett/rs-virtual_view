@@ -91,9 +91,7 @@ impl NodeInner {
                 let mut state = Props::new();
 
                 for partial_state in partial_states.drain(..) {
-                    for (k, v) in partial_state {
-                        state.insert(k, v);
-                    }
+                    state.extend(partial_state);
                 }
 
                 state
@@ -130,14 +128,13 @@ impl NodeInner {
     pub fn mount(&mut self, transaction: &mut Transaction) -> View {
         match &self.kind {
             &NodeKind::Component {
-                ref updater,
                 ref node,
                 ref component,
                 ..
             } => {
                 let mut view = node.mount(transaction);
 
-                component.will_mount(updater);
+                component.will_mount();
 
                 match &mut view {
                     &mut View::Data {
@@ -218,137 +215,167 @@ impl NodeInner {
         next_view: View,
         transaction: &mut Transaction,
     ) -> View {
-        let next_state = self.next_state();
+        if prev_view.component() != next_view.component() {
+            self.renderer
+                .nodes()
+                .remove_at_depth(self.id.clone(), self.depth);
 
-        match &mut self.kind {
-            &mut NodeKind::Component {
-                ref mut state,
-                ref updater,
-                ref component,
-                ref node,
-                ..
-            } => {
-                let should_update = {
-                    let empty_props = Props::new();
-                    let empty_children = Children::new();
+            let node = Node::new(
+                self.index,
+                self.depth,
+                self.id.clone(),
+                &self.renderer,
+                next_view,
+            );
+            let view = node.mount(transaction);
+            transaction.replace(&self.id, self.rendered_view().into(), view.clone().into());
+            view
+        } else {
+            let next_state = self.next_state();
 
-                    let next_props = next_view.props().unwrap_or(&empty_props);
-                    let next_children = next_view.children().unwrap_or(&empty_children);
-
-                    if &prev_view != &next_view {
-                        component.receive_props(&next_state, next_props, next_children);
-                    }
-
-                    if component.should_update(
-                        state,
-                        prev_view.props().unwrap_or(&empty_props),
-                        prev_view.children().unwrap_or(&empty_children),
-                        &next_state,
-                        next_props,
-                        next_children,
-                    ) {
-                        component.will_update();
-                        true
-                    } else {
-                        false
-                    }
-                };
-
-                self.view = next_view;
-                *state = next_state;
-
-                if should_update {
-                    node.receive(
-                        Self::render_component_view(&self.view, state, component, updater),
-                        transaction,
-                    )
-                } else {
-                    node.rendered_view()
-                }
-            }
-            &mut NodeKind::View => if prev_view != next_view {
-                let mut view = next_view.clone_no_children();
-
-                match &next_view {
-                    &View::Data {
-                        props: ref next_props,
-                        children: ref next_children,
-                        ..
-                    } => {
-                        let mut view_children = view.children_mut().unwrap();
-
-                        let empty_children = Children::new();
-                        let prev_children = prev_view.children().unwrap_or(&empty_children);
-                        let children_diff = diff_children(prev_children, next_children);
-
+            match &mut self.kind {
+                &mut NodeKind::Component {
+                    ref mut state,
+                    ref updater,
+                    ref component,
+                    ref node,
+                    ..
+                } => {
+                    let should_update = {
                         let empty_props = Props::new();
-                        let prev_props = prev_view.props().unwrap_or(&empty_props);
+                        let empty_children = Children::new();
 
-                        if let Some(diff_props) = diff_props_object(prev_props, next_props) {
-                            transaction.props(&self.id, prev_props.into(), diff_props.into());
+                        let next_props = next_view.props().unwrap_or(&empty_props);
+                        let next_children = next_view.children().unwrap_or(&empty_children);
+
+                        if &prev_view != &next_view {
+                            component.receive_props(&next_state, next_props, next_children);
                         }
 
-                        self.renderer.update_props_events(
-                            &self.id,
-                            prev_props,
+                        if component.should_update(
+                            state,
+                            prev_view.props().unwrap_or(&empty_props),
+                            prev_view.children().unwrap_or(&empty_children),
+                            &next_state,
                             next_props,
+                            next_children,
+                        ) {
+                            component.will_update();
+                            true
+                        } else {
+                            false
+                        }
+                    };
+
+                    self.view = next_view;
+                    *state = next_state;
+
+                    if should_update {
+                        node.receive(
+                            Self::render_component_view(&self.view, state, component, updater),
                             transaction,
-                        );
+                        )
+                    } else {
+                        node.rendered_view()
+                    }
+                }
+                &mut NodeKind::View => {
+                    let mut view = next_view.clone_no_children();
 
-                        for (index, next_view_option) in children_diff.children.iter().enumerate() {
-                            let prev_view_option = prev_children.get(index);
+                    match &next_view {
+                        &View::Data {
+                            props: ref next_props,
+                            children: ref next_children,
+                            ..
+                        } => {
+                            let mut view_children = view.children_mut().unwrap();
 
-                            if let &Some(next_view) = next_view_option {
-                                let next_view_id = view_id(&self.id, next_view.key(), index);
+                            let empty_children = Children::new();
+                            let prev_children = prev_view.children().unwrap_or(&empty_children);
+                            let children_diff = diff_children(prev_children, next_children);
 
-                                if let Some(prev_view) = prev_view_option {
-                                    let prev_view_id = view_id(&self.id, prev_view.key(), index);
+                            let empty_props = Props::new();
+                            let prev_props = prev_view.props().unwrap_or(&empty_props);
 
-                                    assert!(
-                                        prev_view_id == next_view_id,
-                                        "prev and next id should not be different"
-                                    );
+                            if let Some(diff_props) = diff_props_object(prev_props, next_props) {
+                                transaction.props(&self.id, prev_props.into(), diff_props.into());
+                            }
 
-                                    if let Some(node) = self.renderer.nodes().get(next_view_id) {
-                                        let view = node.receive(next_view.clone(), transaction);
-                                        view_children.push(view);
-                                    } else {
-                                        transaction.replace(
-                                            &prev_view_id,
-                                            prev_view.clone().into(),
-                                            next_view.clone().into(),
-                                        );
-                                        view_children.push(next_view.clone());
+                            self.renderer.update_props_events(
+                                &self.id,
+                                prev_props,
+                                next_props,
+                                transaction,
+                            );
+
+                            for (index, next_view_option) in
+                                children_diff.children.iter().enumerate()
+                            {
+                                let prev_view_option = prev_children.get(index);
+
+                                match next_view_option {
+                                    &Some(next_view) => {
+                                        let next_view_id =
+                                            view_id(&self.id, next_view.key(), index);
+
+                                        if let Some(prev_view) = prev_view_option {
+                                            let prev_view_id =
+                                                view_id(&self.id, prev_view.key(), index);
+
+                                            assert!(
+                                                prev_view_id == next_view_id,
+                                                "prev and next id should not be different"
+                                            );
+
+                                            if let Some(node) =
+                                                self.renderer.nodes().get(next_view_id)
+                                            {
+                                                let view =
+                                                    node.receive(next_view.clone(), transaction);
+                                                view_children.push(view);
+                                            } else if &prev_view != &next_view {
+                                                transaction.replace(
+                                                    &prev_view_id,
+                                                    prev_view.into(),
+                                                    next_view.into(),
+                                                );
+                                                view_children.push(next_view.clone());
+                                            }
+                                        } else {
+                                            let node = Node::new(
+                                                index,
+                                                0,
+                                                next_view_id,
+                                                &self.renderer,
+                                                next_view.clone(),
+                                            );
+                                            let view = node.mount(transaction);
+                                            view_children.push(view);
+                                        }
                                     }
-                                } else {
-                                    let node = Node::new(
-                                        index,
-                                        0,
-                                        next_view_id,
-                                        &self.renderer,
-                                        next_view.clone(),
-                                    );
-                                    let view = node.mount(transaction);
-                                    view_children.push(view);
-                                }
-                            } else if let Some(prev_view) = prev_view_option {
-                                let prev_view_id = view_id(&self.id, prev_view.key(), index);
+                                    &None => {
+                                        if let Some(prev_view) = prev_view_option {
+                                            let prev_view_id =
+                                                view_id(&self.id, prev_view.key(), index);
 
-                                if let Some(node) = self.renderer.nodes().get(prev_view_id) {
-                                    let _ = node.unmount(transaction);
+                                            if let Some(node) =
+                                                self.renderer.nodes().get(prev_view_id)
+                                            {
+                                                let _ = node.unmount(transaction);
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
+                        _ => (),
                     }
-                    _ => (),
+
+                    self.view = view.clone();
+
+                    view
                 }
-
-                self.view = view.clone();
-
-                view
-            } else {
-                self.view.clone()
-            },
+            }
         }
     }
 }

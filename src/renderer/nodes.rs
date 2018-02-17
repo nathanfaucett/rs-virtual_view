@@ -28,15 +28,16 @@ impl Nodes {
     }
 
     #[inline]
-    pub fn remove_at_depth(&self, id: String, depth: usize) -> bool {
+    pub fn remove_at_depth(&self, id: String, depth: usize) -> Option<Node> {
         let mut write = self.write();
-        let mut current_depth = depth;
+        let top_node = write.remove(&(id.clone(), depth));
 
+        let mut current_depth = depth + 1;
         while let Some(_) = write.remove(&(id.clone(), current_depth)) {
             current_depth += 1;
         }
 
-        current_depth != depth
+        top_node
     }
 
     #[inline]

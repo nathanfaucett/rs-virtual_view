@@ -70,17 +70,13 @@ macro_rules! prop_internal {
 
     // Extend next value is an expression followed by comma.
     (@object $object:ident (...) (... $value:expr , $($rest:tt)*) $copy:tt) => (
-        for (k, v) in $value {
-            $object.insert(k, v);
-        }
+        $object.extend($value);
         prop_internal!(@object $object () ($($rest)*) ($($rest)*));
     );
 
     // Extend last value is an expression with no trailing comma.
     (@object $object:ident (...) (... $value:expr) $copy:tt) => (
-        for (k, v) in $value {
-            $object.insert(k, v);
-        }
+        $object.extend($value);
     );
 
     // Next value is `null`.

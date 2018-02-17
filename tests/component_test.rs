@@ -53,7 +53,6 @@ impl Component for Counter {
     fn name(&self) -> &'static str {
         "Counter"
     }
-    #[inline]
     fn initial_state(&self, props: &Props) -> Props {
         props! {
             "count": props.take("count").unwrap_or(0.into())
