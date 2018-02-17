@@ -344,6 +344,7 @@ impl fmt::Display for Prop {
                     while i < il {
                         out.push_str(", ");
                         out.push_str(&array[i].to_string());
+                        i += 1;
                     }
 
                     write!(f, "[{}]", out)
@@ -372,6 +373,7 @@ impl fmt::Display for Prop {
                         out.push_str(&k.to_string());
                         out.push_str(" => ");
                         out.push_str(&v.to_string());
+                        i += 1;
                     }
 
                     write!(f, "[{}]", out)
