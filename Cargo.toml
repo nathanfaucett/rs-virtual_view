@@ -3,7 +3,7 @@ name = "view"
 version = "0.1.0"
 authors = ["Nathan Faucett <nathanfaucett@gmail.com>"]
 
-keywords = ["virtual", "view", "diff"]
+keywords = ["virtual", "view", "diff", "ui"]
 categories = ["gui"]
 
 description = "a virtual view diff in rust"
