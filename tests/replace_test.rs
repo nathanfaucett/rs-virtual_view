@@ -57,12 +57,10 @@ impl Component for TopComp {
         });
     }
     fn render(&self, instance: &Instance, _: &Props, _: &Children) -> View {
-        let render = instance.state.get("render").boolean().unwrap();
-
         view! {
             <div class="TopComp">
                 {
-                    if render {
+                    if instance.state.get("render").boolean().unwrap() {
                         view! { <{Comp0}/> }
                     } else {
                         view! { <{Comp1}/> }

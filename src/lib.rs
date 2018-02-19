@@ -1,4 +1,5 @@
 #![feature(get_type_id)]
+#![feature(conservative_impl_trait)]
 
 extern crate fnv;
 extern crate serde;

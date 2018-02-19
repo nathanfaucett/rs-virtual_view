@@ -60,18 +60,13 @@ impl Component for Counter {
         }
     }
     fn render(&self, instance: &Instance, _: &Props, _: &Children) -> View {
-        let count = instance.state.get("count");
-
-        let add_updater = instance.updater.clone();
-        let sub_updater = instance.updater.clone();
-
         view! {
             <div class="Counter">
-                <p>{format!("Count {}", count)}</p>
-                <{Button} onclick={ move |e: &mut Event| on_add_count(&add_updater, e) }>
+                <p>{format!("Count {}", instance.state.get("count"))}</p>
+                <{Button} onclick={ instance.wrap(on_add_count) }>
                     {"Add"}
                 </{Button}>
-                <{Button} onclick={ move |e: &mut Event| on_sub_count(&sub_updater, e) }>
+                <{Button} onclick={ instance.wrap(on_sub_count) }>
                     {"Sub"}
                 </{Button}>
             </div>

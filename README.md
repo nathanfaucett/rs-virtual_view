@@ -11,7 +11,7 @@ extern crate view;
 use std::sync::mpsc::channel;
 
 use serde_json::Map;
-use view::{Children, Component, Event, EventManager, Props, Renderer, SimpleEvent, Updater, View};
+use view::{Children, Component, Event, EventManager, Props, Renderer, Instance, SimpleEvent, Updater, View};
 
 struct Button;
 
@@ -19,7 +19,7 @@ impl Component for Button {
     fn name(&self) -> &'static str {
         "Button"
     }
-    fn render(&self, _: &Updater, _: &Props, props: &Props, children: &Children) -> View {
+    fn render(&self, _: &Instance, props: &Props, children: &Children) -> View {
         view! {
             <button class="Button" ... { props }>{ each children }</button>
         }
@@ -64,19 +64,14 @@ impl Component for Counter {
             "count": props.take("count").unwrap_or(0.into())
         }
     }
-    fn render(&self, updater: &Updater, state: &Props, _: &Props, _: &Children) -> View {
-        let count = state.get("count");
-
-        let add_updater = updater.clone();
-        let sub_updater = updater.clone();
-
+    fn render(&self, instance: &Instance, _: &Props, _: &Children) -> View {
         view! {
             <div class="Counter">
-                <p>{format!("Count {}", count)}</p>
-                <{Button} onclick={ move |e: &mut Event| on_add_count(&add_updater, e) }>
+                <p>{format!("Count {}", instance.state.get("count"))}</p>
+                <{Button} onclick={ instance.wrap(on_add_count) }>
                     {"Add"}
                 </{Button}>
-                <{Button} onclick={ move |e: &mut Event| on_sub_count(&sub_updater, e) }>
+                <{Button} onclick={ instance.wrap(on_sub_count) }>
                     {"Sub"}
                 </{Button}>
             </div>
