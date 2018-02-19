@@ -4,13 +4,11 @@ rs-view
 a virtual view in rust
 
 ```rust
-extern crate serde_json;
 #[macro_use]
 extern crate view;
 
 use std::sync::mpsc::channel;
 
-use serde_json::Map;
 use view::{Children, Component, Event, EventManager, Props, Renderer, Instance, SimpleEvent, Updater, View};
 
 struct Button;
@@ -28,31 +26,33 @@ impl Component for Button {
 
 struct Counter;
 
-fn on_add_count(updater: &Updater, _: &mut Event) {
-    updater.update(|current| {
-        let mut next = current.clone();
+impl Counter {
+    fn on_add_count(updater: &Updater, _: &mut Event) {
+        updater.update(|current| {
+            let mut next = current.clone();
 
-        next.update("count", |count| {
-            if let Some(c) = count.number() {
-                *count = (c + 1.0).into();
-            }
+            next.update("count", |count| {
+                if let Some(c) = count.number() {
+                    *count = (c + 1.0).into();
+                }
+            });
+
+            next
         });
+    }
+    fn on_sub_count(updater: &Updater, _: &mut Event) {
+        updater.update(|current| {
+            let mut next = current.clone();
 
-        next
-    });
-}
-fn on_sub_count(updater: &Updater, _: &mut Event) {
-    updater.update(|current| {
-        let mut next = current.clone();
+            next.update("count", |count| {
+                if let Some(c) = count.number() {
+                    *count = (c - 1.0).into();
+                }
+            });
 
-        next.update("count", |count| {
-            if let Some(c) = count.number() {
-                *count = (c - 1.0).into();
-            }
+            next
         });
-
-        next
-    });
+    }
 }
 
 impl Component for Counter {
@@ -68,10 +68,10 @@ impl Component for Counter {
         view! {
             <div class="Counter">
                 <p>{format!("Count {}", instance.state.get("count"))}</p>
-                <{Button} onclick={ instance.wrap(on_add_count) }>
+                <{Button} onclick={ instance.wrap(Counter::on_add_count) }>
                     {"Add"}
                 </{Button}>
-                <{Button} onclick={ instance.wrap(on_sub_count) }>
+                <{Button} onclick={ instance.wrap(Counter::on_sub_count) }>
                     {"Sub"}
                 </{Button}>
             </div>
@@ -80,12 +80,6 @@ impl Component for Counter {
 }
 
 fn main() {
-    let event_manager = EventManager::new();
-    let renderer = Renderer::new(
-        view! { <{Counter} count=0/> },
-        event_manager.clone(),
-    );
-
     let (sender, receiver) = channel();
 
     let event_manager = EventManager::new();
