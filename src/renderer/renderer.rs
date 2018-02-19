@@ -1,8 +1,8 @@
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use super::super::{EventManager, Props, Transaction, View};
-use super::{Handler, Node, Nodes};
+use super::{Handler, Message, Node, Nodes, Queue};
 
 static ROOT_ID: AtomicUsize = AtomicUsize::new(0);
 
@@ -12,10 +12,15 @@ pub struct RendererInner {
     handler: Box<Handler>,
     nodes: Nodes,
     event_manager: EventManager,
+    queue: Queue,
+    processing: AtomicBool,
 }
 
 #[derive(Clone)]
 pub struct Renderer(Arc<RendererInner>);
+
+unsafe impl Send for Renderer {}
+unsafe impl Sync for Renderer {}
 
 impl Renderer {
     #[inline]
@@ -35,6 +40,8 @@ impl Renderer {
             handler: Box::new(handler),
             nodes: Nodes::new(),
             event_manager: event_manager,
+            queue: Queue::new(),
+            processing: AtomicBool::new(false),
         }));
 
         renderer.mount(view);
@@ -59,24 +66,84 @@ impl Renderer {
         &self.0.nodes
     }
 
+    #[inline]
+    pub fn processing(&self) -> bool {
+        !self.0
+            .processing
+            .compare_and_swap(false, true, Ordering::SeqCst)
+    }
+    #[inline]
+    fn finish_processing(&self) {
+        self.0.processing.store(false, Ordering::SeqCst);
+        self.process_queue();
+    }
+
     #[inline(always)]
-    pub(super) fn transaction(&self, transaction: Transaction) {
+    fn process_queue(&self) {
+        if self.processing() {
+            if let Some(message) = self.0.queue.pop() {
+                match message {
+                    Message::Mount(view) => self.internal_mount(view),
+                    Message::Update(id, depth, f) => self.internal_update(id, depth, f),
+                    Message::Unmount => self.internal_unmount(),
+                }
+            } else {
+                self.0.processing.store(false, Ordering::SeqCst);
+            }
+        }
+    }
+
+    #[inline(always)]
+    fn handle_transaction(&self, transaction: Transaction) {
         self.0.handler.handle(transaction);
     }
 
     #[inline]
     pub fn mount(&self, view: View) {
-        let mut transaction = Transaction::new();
-        let node = Node::new(self.0.root_index, 0, self.0.root_id.clone(), self, view);
-
-        let view = node.mount(&mut transaction);
-        transaction.mount(&self.0.root_id, view.into());
-
-        self.transaction(transaction);
+        if !self.0.nodes.is_empty() {
+            self.unmount();
+        }
+        self.0.queue.push_mount(view);
+        self.process_queue();
     }
 
     #[inline]
     pub fn unmount(&self) {
+        self.0.queue.push_unmount();
+        self.process_queue();
+    }
+
+    #[inline]
+    pub(super) fn update<F>(&self, id: String, depth: usize, f: F)
+    where
+        F: 'static + Send + Fn(&Props) -> Props,
+    {
+        self.0.queue.push_update(id, depth, f);
+        self.process_queue();
+    }
+
+    #[inline]
+    fn internal_mount(&self, view: View) {
+        let mut transaction = Transaction::new();
+        let node = Node::new(
+            self.0.root_index,
+            0,
+            self.0.root_id.clone(),
+            self,
+            view,
+            &Props::new(),
+        );
+
+        let view = node.mount(&mut transaction);
+        transaction.mount(&self.0.root_id, view.into());
+
+        self.handle_transaction(transaction);
+
+        self.finish_processing();
+    }
+
+    #[inline]
+    fn internal_unmount(&self) {
         let mut transaction = Transaction::new();
 
         let unmounted_view = if let Some(node) = self.0.nodes.get(self.0.root_id.clone()) {
@@ -87,27 +154,25 @@ impl Renderer {
 
         if let Some(view) = unmounted_view {
             transaction.unmount(&self.0.root_id, view.into());
-            self.transaction(transaction);
+            self.handle_transaction(transaction);
         }
+
+        self.finish_processing();
     }
 
     #[inline]
-    pub(super) fn update<F>(&self, id: String, depth: usize, f: F)
-    where
-        F: Fn(&Props) -> Props,
-    {
+    fn internal_update(&self, id: String, depth: usize, f: Box<Fn(&Props) -> Props + Send>) {
         if let Some(node) = self.0.nodes.get_at_depth(id, depth) {
-            let mut node_lock = node.lock();
-
-            node_lock.update_state(f);
-
-            let prev_view = node_lock.view.clone();
-            let next_view = node_lock.view.clone();
-
             let mut transaction = Transaction::new();
-            node_lock.update(prev_view, next_view, &mut transaction);
-            self.transaction(transaction);
+
+            node.as_mut().update_state(&*f, &mut transaction);
+
+            if !transaction.is_empty() {
+                self.handle_transaction(transaction);
+            }
         }
+
+        self.finish_processing();
     }
 
     #[inline]

@@ -5,7 +5,8 @@ extern crate view;
 use std::sync::mpsc::channel;
 
 use serde_json::Map;
-use view::{Children, Component, Event, EventManager, Props, Renderer, SimpleEvent, Updater, View};
+use view::{Children, Component, Event, EventManager, Instance, Props, Renderer, SimpleEvent,
+           Updater, View};
 
 struct Button;
 
@@ -13,7 +14,7 @@ impl Component for Button {
     fn name(&self) -> &'static str {
         "Button"
     }
-    fn render(&self, _: &Updater, _: &Props, props: &Props, children: &Children) -> View {
+    fn render(&self, _: &Instance, props: &Props, children: &Children) -> View {
         view! {
             <button class="Button" ... { props }>{ each children }</button>
         }
@@ -23,7 +24,7 @@ impl Component for Button {
 struct Counter;
 
 fn on_add_count(updater: &Updater, _: &mut Event) {
-    updater.update(|current| {
+    updater.set_state(|current| {
         let mut next = current.clone();
 
         next.update("count", |count| {
@@ -36,7 +37,7 @@ fn on_add_count(updater: &Updater, _: &mut Event) {
     });
 }
 fn on_sub_count(updater: &Updater, _: &mut Event) {
-    updater.update(|current| {
+    updater.set_state(|current| {
         let mut next = current.clone();
 
         next.update("count", |count| {
@@ -58,11 +59,11 @@ impl Component for Counter {
             "count": props.take("count").unwrap_or(0.into())
         }
     }
-    fn render(&self, updater: &Updater, state: &Props, _: &Props, _: &Children) -> View {
-        let count = state.get("count");
+    fn render(&self, instance: &Instance, _: &Props, _: &Children) -> View {
+        let count = instance.state.get("count");
 
-        let add_updater = updater.clone();
-        let sub_updater = updater.clone();
+        let add_updater = instance.updater.clone();
+        let sub_updater = instance.updater.clone();
 
         view! {
             <div class="Counter">

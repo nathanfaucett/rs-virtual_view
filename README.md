@@ -85,6 +85,12 @@ impl Component for Counter {
 }
 
 fn main() {
+    let event_manager = EventManager::new();
+    let renderer = Renderer::new(
+        view! { <{Counter} count=0/> },
+        event_manager.clone(),
+    );
+
     let (sender, receiver) = channel();
 
     let event_manager = EventManager::new();

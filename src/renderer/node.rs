@@ -1,16 +1,17 @@
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::Arc;
+use std::rc::Rc;
+use std::cell::{Ref, RefCell, RefMut};
 
 use super::super::{diff_children, diff_props_object, parent_id, view_id, Children, Component,
-                   Props, Transaction, Updater, View};
+                   Instance, Props, Transaction, Updater, View};
 use super::Renderer;
 
 pub enum NodeKind {
     View,
     Component {
-        partial_states: Vec<Props>,
+        instance: Instance,
         node: Node,
-        updater: Updater,
-        state: Props,
+        next_state: Option<Props>,
         component: Arc<Component>,
     },
 }
@@ -22,21 +23,40 @@ pub struct NodeInner {
     pub renderer: Renderer,
     pub view: View,
     pub kind: NodeKind,
+    pub parent_context: Props,
 }
 
 impl NodeInner {
     #[inline]
-    pub fn new(index: usize, depth: usize, id: String, renderer: &Renderer, view: View) -> Self {
+    pub fn new(
+        index: usize,
+        depth: usize,
+        id: String,
+        renderer: &Renderer,
+        view: View,
+        parent_context: &Props,
+    ) -> Self {
         let kind = if let Some(component) = view.component().map(Clone::clone) {
+            let mut context = component.context(view.props().unwrap());
+            context = component.inherit_context(context, parent_context);
+
             let state = component.initial_state(view.props().unwrap());
             let updater = Updater::new(id.clone(), depth, renderer.clone());
-            let rendered_view = Self::render_component_view(&view, &state, &component, &updater);
+            let instance = Instance::new(state, context, updater);
+
+            let rendered_view = Self::render_component_view(&instance, &view, &component);
 
             NodeKind::Component {
-                partial_states: Vec::new(),
-                node: Node::new(index, depth + 1, id.clone(), renderer, rendered_view),
-                updater: updater,
-                state: state,
+                node: Node::new(
+                    index,
+                    depth + 1,
+                    id.clone(),
+                    renderer,
+                    rendered_view,
+                    &instance.context,
+                ),
+                instance: instance,
+                next_state: None,
                 component: component,
             }
         } else {
@@ -50,59 +70,59 @@ impl NodeInner {
             renderer: renderer.clone(),
             view: view,
             kind: kind,
+            parent_context: parent_context.clone(),
         }
     }
 
     #[inline]
-    pub fn update_state<F>(&mut self, f: F)
+    fn set_next_state<F>(&mut self, f: F)
     where
         F: Fn(&Props) -> Props,
     {
         match &mut self.kind {
             &mut NodeKind::Component {
-                ref state,
-                ref mut partial_states,
+                ref instance,
+                ref mut next_state,
                 ..
             } => {
-                partial_states.push(f(state));
+                *next_state = Some(f(&instance.state));
             }
             _ => (),
         }
     }
 
     #[inline]
-    pub fn next_state(&mut self) -> Props {
+    pub fn update_state<F>(&mut self, f: F, transaction: &mut Transaction)
+    where
+        F: Fn(&Props) -> Props,
+    {
+        self.set_next_state(f);
+
+        let prev_view = self.view.clone();
+        let next_view = self.view.clone();
+
+        self.update(prev_view, next_view, transaction);
+    }
+
+    #[inline]
+    fn next_state(&mut self) -> Props {
         match &mut self.kind {
             &mut NodeKind::Component {
-                ref mut partial_states,
-                ..
-            } => {
-                let mut state = Props::new();
-
-                for partial_state in partial_states.drain(..) {
-                    state.extend(partial_state);
-                }
-
-                state
-            }
+                ref mut next_state, ..
+            } => next_state.take().unwrap_or_else(Props::new),
             _ => Props::new(),
         }
     }
 
     #[inline]
-    fn render_component_view(
-        view: &View,
-        state: &Props,
-        component: &Arc<Component>,
-        updater: &Updater,
-    ) -> View {
+    fn render_component_view(instance: &Instance, view: &View, component: &Arc<Component>) -> View {
         let empty_props = Props::new();
         let empty_children = Children::new();
 
         let props = view.props().unwrap_or(&empty_props);
         let children = view.children().unwrap_or(&empty_children);
 
-        component.render(updater, state, props, children)
+        component.render(instance, props, children)
     }
 
     #[inline]
@@ -117,13 +137,14 @@ impl NodeInner {
     pub fn mount(&mut self, transaction: &mut Transaction) -> View {
         match &self.kind {
             &NodeKind::Component {
+                ref instance,
                 ref node,
                 ref component,
                 ..
             } => {
                 let mut view = node.mount(transaction);
 
-                component.will_mount();
+                component.will_mount(instance);
 
                 match &mut view {
                     &mut View::Data {
@@ -131,7 +152,14 @@ impl NodeInner {
                     } => for (index, child) in children.iter_mut().enumerate() {
                         if child.is_data() {
                             let child_id = view_id(&self.id, child.key(), index);
-                            let node = Node::new(index, 0, child_id, &self.renderer, child.clone());
+                            let node = Node::new(
+                                index,
+                                0,
+                                child_id,
+                                &self.renderer,
+                                child.clone(),
+                                &instance.context,
+                            );
                             *child = node.mount(transaction);
                         }
                     },
@@ -152,7 +180,14 @@ impl NodeInner {
                     } => for (index, child) in children.iter_mut().enumerate() {
                         if child.is_data() {
                             let child_id = view_id(&self.id, child.key(), index);
-                            let node = Node::new(index, 0, child_id, &self.renderer, child.clone());
+                            let node = Node::new(
+                                index,
+                                0,
+                                child_id,
+                                &self.renderer,
+                                child.clone(),
+                                &self.parent_context,
+                            );
                             *child = node.mount(transaction);
                         }
                     },
@@ -168,13 +203,14 @@ impl NodeInner {
     pub fn unmount(&mut self, transaction: &mut Transaction) -> View {
         let view = match &self.kind {
             &NodeKind::Component {
+                ref instance,
                 ref node,
                 ref component,
                 ..
             } => {
                 let mut view = node.unmount(transaction);
 
-                component.will_unmount();
+                component.will_unmount(instance);
 
                 match &mut view {
                     &mut View::Data {
@@ -237,7 +273,7 @@ impl NodeInner {
         if Self::should_update(&prev_view, &next_view) {
             self.internal_update(prev_view, next_view, transaction)
         } else {
-            let _ = self.unmount(transaction);
+            self.unmount(transaction);
 
             let node = Node::new(
                 self.index,
@@ -245,6 +281,7 @@ impl NodeInner {
                 view_id(&parent_id(&self.id), next_view.key(), self.index),
                 &self.renderer,
                 next_view,
+                &self.parent_context,
             );
             let view = node.mount(transaction);
             transaction.replace(&self.id, self.rendered_view().into(), view.clone().into());
@@ -285,8 +322,7 @@ impl NodeInner {
 
         match &mut self.kind {
             &mut NodeKind::Component {
-                ref mut state,
-                ref updater,
+                ref mut instance,
                 ref component,
                 ref node,
                 ..
@@ -299,18 +335,18 @@ impl NodeInner {
                     let next_children = next_view.children().unwrap_or(&empty_children);
 
                     if &prev_view != &next_view {
-                        component.receive_props(&next_state, next_props, next_children);
+                        component.receive_props(instance, &next_state, next_props, next_children);
                     }
 
                     if component.should_update(
-                        state,
+                        &instance.state,
                         prev_view.props().unwrap_or(&empty_props),
                         prev_view.children().unwrap_or(&empty_children),
                         &next_state,
                         next_props,
                         next_children,
                     ) {
-                        component.will_update();
+                        component.will_update(instance);
                         true
                     } else {
                         false
@@ -318,11 +354,11 @@ impl NodeInner {
                 };
 
                 self.view = next_view;
-                *state = next_state;
+                instance.state = next_state;
 
                 if should_update {
                     node.receive(
-                        Self::render_component_view(&self.view, state, component, updater),
+                        Self::render_component_view(instance, &self.view, component),
                         transaction,
                     )
                 } else {
@@ -376,6 +412,7 @@ impl NodeInner {
                                         next_view_id.clone(),
                                         &self.renderer,
                                         next_view.clone(),
+                                        &self.parent_context,
                                     );
                                     let view = node.mount(transaction);
                                     transaction.insert(
@@ -425,17 +462,28 @@ impl NodeInner {
 }
 
 #[derive(Clone)]
-pub struct Node(Arc<Mutex<NodeInner>>);
+pub struct Node(Rc<RefCell<NodeInner>>);
+
+unsafe impl Send for Node {}
+unsafe impl Sync for Node {}
 
 impl Node {
     #[inline]
-    pub fn new(index: usize, depth: usize, id: String, renderer: &Renderer, view: View) -> Self {
-        let node = Node(Arc::new(Mutex::new(NodeInner::new(
+    pub fn new(
+        index: usize,
+        depth: usize,
+        id: String,
+        renderer: &Renderer,
+        view: View,
+        parent_context: &Props,
+    ) -> Self {
+        let node = Node(Rc::new(RefCell::new(NodeInner::new(
             index,
             depth,
             id.clone(),
             renderer,
             view,
+            parent_context,
         ))));
 
         renderer.nodes().insert_at_depth(id, depth, node.clone());
@@ -444,25 +492,29 @@ impl Node {
     }
 
     #[inline]
-    pub fn lock(&self) -> MutexGuard<NodeInner> {
-        self.0.lock().expect("failed to acquire node lock")
+    pub fn as_ref(&self) -> Ref<NodeInner> {
+        self.0.borrow()
+    }
+    #[inline]
+    pub fn as_mut(&self) -> RefMut<NodeInner> {
+        self.0.borrow_mut()
     }
 
     #[inline]
     pub fn rendered_view(&self) -> View {
-        self.lock().rendered_view()
+        self.as_ref().rendered_view()
     }
 
     #[inline]
     pub fn mount(&self, transaction: &mut Transaction) -> View {
-        self.lock().mount(transaction)
+        self.as_mut().mount(transaction)
     }
     #[inline]
     pub fn unmount(&self, transaction: &mut Transaction) -> View {
-        self.lock().unmount(transaction)
+        self.as_mut().unmount(transaction)
     }
     #[inline]
     pub fn receive(&self, next_view: View, transaction: &mut Transaction) -> View {
-        self.lock().receive(next_view, transaction)
+        self.as_mut().receive(next_view, transaction)
     }
 }

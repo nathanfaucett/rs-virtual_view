@@ -7,6 +7,9 @@ use super::Node;
 #[derive(Clone)]
 pub struct Nodes(Arc<RwLock<FnvHashMap<(String, usize), Node>>>);
 
+unsafe impl Send for Nodes {}
+unsafe impl Sync for Nodes {}
+
 impl Nodes {
     #[inline]
     pub fn new() -> Self {
@@ -47,5 +50,9 @@ impl Nodes {
     #[inline]
     pub fn get(&self, id: String) -> Option<Node> {
         self.get_at_depth(id, 0)
+    }
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.read().is_empty()
     }
 }
