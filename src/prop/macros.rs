@@ -100,8 +100,8 @@ macro_rules! prop_internal {
     );
 
     // Next value is a object.
-    (@object $object:ident ($($key:tt)+) (: {$($object:tt)*} $($rest:tt)*) $copy:tt) => (
-        prop_internal!(@object $object [$($key)+] (prop_internal!({$($object)*})) $($rest)*);
+    (@object $object:ident ($($key:tt)+) (: {$($obj:tt)*} $($rest:tt)*) $copy:tt) => (
+        prop_internal!(@object $object [$($key)+] (prop_internal!({$($obj)*})) $($rest)*);
     );
 
     // Next value is an expression followed by comma.
