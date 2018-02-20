@@ -1,4 +1,4 @@
-rs-view
+rs-virtual_view
 =====
 
 a virtual view in rust
@@ -6,11 +6,11 @@ a virtual view in rust
 ```rust
 extern crate serde_json;
 #[macro_use]
-extern crate view;
+extern crate virtual_view;
 
 use std::sync::mpsc::channel;
 
-use view::{Children, Component, Event, EventManager, Instance, Props, Renderer, SimpleEvent,
+use virtual_view::{Children, Component, Event, EventManager, Instance, Props, Renderer, SimpleEvent,
            Updater, View};
 use serde_json::Map;
 

@@ -1,7 +1,7 @@
 #[macro_use]
-extern crate view;
+extern crate virtual_view;
 
-use view::Event;
+use virtual_view::Event;
 
 #[test]
 fn test_view() {

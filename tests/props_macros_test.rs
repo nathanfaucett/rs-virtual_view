@@ -1,7 +1,7 @@
 #[macro_use]
-extern crate view;
+extern crate virtual_view;
 
-use view::{Event, Prop, Props};
+use virtual_view::{Event, Prop, Props};
 
 #[test]
 fn test_prop_null() {

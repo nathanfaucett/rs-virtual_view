@@ -1,10 +1,10 @@
 extern crate serde_json;
 #[macro_use]
-extern crate view;
+extern crate virtual_view;
 
 use std::sync::mpsc::channel;
 
-use view::{Children, Component, EventManager, Instance, Props, Renderer, View};
+use virtual_view::{Children, Component, EventManager, Instance, Props, Renderer, View};
 
 struct Comp0;
 

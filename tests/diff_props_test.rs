@@ -1,7 +1,7 @@
 #[macro_use]
-extern crate view;
+extern crate virtual_view;
 
-use view::diff_props;
+use virtual_view::diff_props;
 
 #[test]
 fn test_diff_props() {

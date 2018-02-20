@@ -1,7 +1,7 @@
 #[macro_use]
-extern crate view;
+extern crate virtual_view;
 
-use view::diff_children;
+use virtual_view::diff_children;
 
 #[test]
 fn test_diff_children_complex() {

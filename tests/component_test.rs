@@ -1,12 +1,12 @@
 extern crate serde_json;
 #[macro_use]
-extern crate view;
+extern crate virtual_view;
 
 use std::sync::mpsc::channel;
 
 use serde_json::Map;
-use view::{Children, Component, Event, EventManager, Instance, Props, Renderer, SimpleEvent,
-           Updater, View};
+use virtual_view::{Children, Component, Event, EventManager, Instance, Props, Renderer,
+                   SimpleEvent, Updater, View};
 
 struct Button;
 
