@@ -13,6 +13,9 @@ pub enum RawView {
     },
 }
 
+unsafe impl Sync for RawView {}
+unsafe impl Send for RawView {}
+
 impl<'a> From<&'a View> for RawView {
     #[inline]
     fn from(view: &'a View) -> Self {

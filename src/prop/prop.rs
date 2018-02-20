@@ -19,6 +19,9 @@ pub enum Prop {
     Object(Props),
 }
 
+unsafe impl Sync for Prop {}
+unsafe impl Send for Prop {}
+
 pub type Number = f64;
 pub type Function = Arc<Fn(&mut Event)>;
 

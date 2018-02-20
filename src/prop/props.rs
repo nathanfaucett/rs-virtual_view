@@ -12,6 +12,9 @@ const PROP_NULL: Prop = Prop::Null;
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Props(FnvHashMap<String, Prop>);
 
+unsafe impl Sync for Props {}
+unsafe impl Send for Props {}
+
 impl Props {
     #[inline(always)]
     pub fn new() -> Self {

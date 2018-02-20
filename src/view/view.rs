@@ -14,6 +14,9 @@ pub enum View {
     },
 }
 
+unsafe impl Sync for View {}
+unsafe impl Send for View {}
+
 impl View {
     #[inline]
     pub fn new(kind: ViewKind, mut props: Props, children: Children) -> Self {

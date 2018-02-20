@@ -10,6 +10,9 @@ pub enum ViewKind {
     Component(Arc<Component>),
 }
 
+unsafe impl Sync for ViewKind {}
+unsafe impl Send for ViewKind {}
+
 impl<'a> From<&'a str> for ViewKind {
     #[inline(always)]
     fn from(string: &'a str) -> Self {

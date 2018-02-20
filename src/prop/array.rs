@@ -7,6 +7,9 @@ use super::Prop;
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Array(Vec<Prop>);
 
+unsafe impl Sync for Array {}
+unsafe impl Send for Array {}
+
 impl Array {
     #[inline(always)]
     pub fn new() -> Self {

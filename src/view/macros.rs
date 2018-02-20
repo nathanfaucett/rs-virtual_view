@@ -138,14 +138,12 @@ pub fn child_to_parent_component(stack: &mut Vec<View>, end_type_id: TypeId) {
 macro_rules! view_internal {
     // Start of opening tag
     ($stack:ident (< $start_tag:ident $($tail:tt)*)) => (
-        let view = $crate::View::new_data(stringify!($start_tag));
-        $stack.push(view);
+        $stack.push($crate::View::new_data(stringify!($start_tag)));
         view_internal! { $stack ($($tail)*) }
     );
     // Start of opening Component
     ($stack:ident (< { $start_component:expr } $($tail:tt)*)) => (
-        let view = $crate::View::new_component($start_component);
-        $stack.push(view);
+        $stack.push($crate::View::new_component($start_component));
         view_internal! { $stack ($($tail)*) }
     );
 
