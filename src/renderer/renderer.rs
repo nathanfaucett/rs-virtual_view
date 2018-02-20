@@ -78,7 +78,7 @@ impl Renderer {
         self.process_queue();
     }
 
-    #[inline(always)]
+    #[inline]
     fn process_queue(&self) {
         if self.processing() {
             if let Some(message) = self.0.queue.pop() {

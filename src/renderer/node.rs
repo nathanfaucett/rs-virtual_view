@@ -464,9 +464,6 @@ impl NodeInner {
 #[derive(Clone)]
 pub struct Node(Rc<RefCell<NodeInner>>);
 
-unsafe impl Send for Node {}
-unsafe impl Sync for Node {}
-
 impl Node {
     #[inline]
     pub fn new(

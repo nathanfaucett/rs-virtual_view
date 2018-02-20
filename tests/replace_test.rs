@@ -12,9 +12,15 @@ impl Component for Comp0 {
     fn name(&self) -> &'static str {
         "Comp0"
     }
-    fn render(&self, _: &Instance, _: &Props, _: &Children) -> View {
+    fn inherit_context(&self, mut context: Props, parent_context: &Props) -> Props {
+        context.extend(parent_context);
+        context
+    }
+    fn render(&self, instance: &Instance, _: &Props, _: &Children) -> View {
+        let color = instance.context.take("color").unwrap();
+
         view! {
-            <p class="Comp0">{0}</p>
+            <p class="Comp0" style={{ "color": color }}>{0}</p>
         }
     }
 }
@@ -25,9 +31,15 @@ impl Component for Comp1 {
     fn name(&self) -> &'static str {
         "Comp1"
     }
-    fn render(&self, _: &Instance, _: &Props, _: &Children) -> View {
+    fn inherit_context(&self, mut context: Props, parent_context: &Props) -> Props {
+        context.extend(parent_context);
+        context
+    }
+    fn render(&self, instance: &Instance, _: &Props, _: &Children) -> View {
+        let color = instance.context.take("color").unwrap();
+
         view! {
-            <p class="Comp1">{1}</p>
+            <p class="Comp1" style={{ "color": color }}>{1}</p>
         }
     }
 }
@@ -45,7 +57,7 @@ impl Component for TopComp {
     }
     fn context(&self, _: &Props) -> Props {
         props! {
-            "render": true,
+            "color": "#F00",
         }
     }
     fn will_mount(&self, instance: &Instance) {

@@ -6,10 +6,12 @@ a virtual view in rust
 ```rust
 #[macro_use]
 extern crate view;
+extern crate serde_json;
 
 use std::sync::mpsc::channel;
 
-use view::{Children, Component, Event, EventManager, Props, Renderer, Instance, SimpleEvent, Updater, View};
+use view::{Children, Component, Event, EventManager, Props, SimpleEvent, Renderer, Instance, SimpleEvent, Updater, View};
+use serde_json::Map;
 
 struct Button;
 
@@ -90,6 +92,8 @@ fn main() {
         event_manager.clone(),
         sender,
     );
+
+    event_manager.dispatch(".0.1", &mut SimpleEvent::new("onclick", Map::new()));
 
     let mount_transaction = receiver.recv().unwrap();
     println!("{:?}", mount_transaction);

@@ -16,7 +16,7 @@ impl Component for Button {
     }
     fn render(&self, _: &Instance, props: &Props, children: &Children) -> View {
         view! {
-            <button class="Button" ... { props }>{ each children }</button>
+            <button class="Button" ...{ props }>{ each children }</button>
         }
     }
 }

@@ -1,42 +1,40 @@
-use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::rc::Rc;
+use std::cell::{Ref, RefCell, RefMut};
 
 use fnv::FnvHashMap;
 
 use super::Node;
 
 #[derive(Clone)]
-pub struct Nodes(Arc<RwLock<FnvHashMap<(String, usize), Node>>>);
-
-unsafe impl Send for Nodes {}
-unsafe impl Sync for Nodes {}
+pub struct Nodes(Rc<RefCell<FnvHashMap<(String, usize), Node>>>);
 
 impl Nodes {
     #[inline]
     pub fn new() -> Self {
-        Nodes(Arc::new(RwLock::new(FnvHashMap::default())))
+        Nodes(Rc::new(RefCell::new(FnvHashMap::default())))
     }
 
     #[inline]
-    pub fn read(&self) -> RwLockReadGuard<FnvHashMap<(String, usize), Node>> {
-        self.0.read().expect("failed to acquire nodes read lock")
+    pub fn as_ref(&self) -> Ref<FnvHashMap<(String, usize), Node>> {
+        self.0.borrow()
     }
     #[inline]
-    pub fn write(&self) -> RwLockWriteGuard<FnvHashMap<(String, usize), Node>> {
-        self.0.write().expect("failed to acquire nodes read lock")
+    pub fn as_mut(&self) -> RefMut<FnvHashMap<(String, usize), Node>> {
+        self.0.borrow_mut()
     }
 
     #[inline]
     pub fn insert_at_depth(&self, id: String, depth: usize, node: Node) {
-        self.write().insert((id, depth), node);
+        self.as_mut().insert((id, depth), node);
     }
 
     #[inline]
     pub fn remove_at_depth(&self, id: String, depth: usize) -> Option<Node> {
-        let mut write = self.write();
-        let top_node = write.remove(&(id.clone(), depth));
+        let mut nodes_mut = self.as_mut();
+        let top_node = nodes_mut.remove(&(id.clone(), depth));
 
         let mut current_depth = depth + 1;
-        while let Some(_) = write.remove(&(id.clone(), current_depth)) {
+        while let Some(_) = nodes_mut.remove(&(id.clone(), current_depth)) {
             current_depth += 1;
         }
 
@@ -45,7 +43,7 @@ impl Nodes {
 
     #[inline]
     pub fn get_at_depth(&self, id: String, depth: usize) -> Option<Node> {
-        self.read().get(&(id, depth)).map(Clone::clone)
+        self.as_ref().get(&(id, depth)).map(Clone::clone)
     }
     #[inline]
     pub fn get(&self, id: String) -> Option<Node> {
@@ -53,6 +51,6 @@ impl Nodes {
     }
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.read().is_empty()
+        self.as_ref().is_empty()
     }
 }
