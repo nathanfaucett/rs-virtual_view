@@ -1,20 +1,29 @@
-use std::{mem, raw};
+use std::{fmt, mem, raw};
 use std::intrinsics::type_name;
 
 pub struct AnyFn {
     trait_object: raw::TraitObject,
-    name: &'static str,
+    name: (&'static str, &'static str),
+}
+
+impl fmt::Debug for AnyFn {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Fn{} -> {}", self.name.0, self.name.1)
+    }
 }
 
 impl AnyFn {
     #[inline]
     pub fn new<F, A, R>(f: F) -> Self
     where
-        F: Fn<A, Output = R>,
+        F: 'static + Fn<A, Output = R>,
+        A: 'static,
+        R: 'static,
     {
         let object: Box<Fn<A, Output = R>> = Box::new(f);
         let trait_object: raw::TraitObject = unsafe { mem::transmute(object) };
-        let name = unsafe { type_name::<(A, R)>() };
+        let name = unsafe { (type_name::<A>(), type_name::<R>()) };
 
         AnyFn {
             trait_object: trait_object,
@@ -32,7 +41,7 @@ impl AnyFn {
     /// ```
     #[inline]
     pub fn is<A, R>(&self) -> bool {
-        self.name == unsafe { type_name::<(A, R)>() }
+        self.name == unsafe { (type_name::<A>(), type_name::<R>()) }
     }
 
     /// # Examples
@@ -40,15 +49,19 @@ impl AnyFn {
     /// use virtual_view::AnyFn;
     ///
     /// let add = AnyFn::new(|a: isize, b: isize| -> isize { a + b });
-    /// let result: Option<isize> = add.call((2_isize, 2_isize));
-    /// assert_eq!(result.unwrap(), 4);
+    /// let result: isize = add.call((2_isize, 2_isize)).unwrap();
+    /// assert_eq!(result, 4);
     /// ```
     #[inline]
-    pub fn call<A, R>(&self, args: A) -> Option<R> {
+    pub fn call<A, R>(&self, args: A) -> Result<R, String> {
         if self.is::<A, R>() {
-            Some(unsafe { self.call_unchecked(args) })
+            Ok(unsafe { self.call_unchecked(args) })
         } else {
-            None
+            Err(format!(
+                "Invalid Args or Return passed to AnyFn, is {:?} passed {}",
+                self,
+                unsafe { format!("Fn{} -> {}", type_name::<A>(), type_name::<R>()) }
+            ))
         }
     }
 

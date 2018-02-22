@@ -38,7 +38,7 @@ impl EventManager {
 
         for (id, func) in event_funcs {
             event.set_target_id(id);
-            func.call::<(&mut Event,), ()>((event,));
+            let _: () = func.call::<(&mut Event,), ()>((event,)).unwrap();
 
             if !event.propagation() {
                 break;

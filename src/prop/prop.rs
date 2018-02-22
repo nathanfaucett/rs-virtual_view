@@ -27,6 +27,15 @@ pub type Function = Arc<AnyFn>;
 
 impl Prop {
     #[inline]
+    pub fn new_function<F, A, R>(f: F) -> Self
+    where
+        F: 'static + Fn<A, Output = R>,
+        A: 'static,
+        R: 'static,
+    {
+        Prop::Function(Arc::new(AnyFn::new(f)))
+    }
+    #[inline]
     pub fn null(&self) -> Option<()> {
         match self {
             &Prop::Null => Some(()),
@@ -191,10 +200,14 @@ impl Prop {
         }
     }
     #[inline]
-    pub fn call<A, R>(&self, args: A) -> Option<R> {
+    pub fn call<A, R>(&self, args: A) -> Result<R, String>
+    where
+        A: 'static,
+        R: 'static,
+    {
         match self {
             &Prop::Function(ref function) => function.call(args),
-            _ => None,
+            _ => Err(format!("Trying to call {} that is not a Function", self)),
         }
     }
 }
@@ -243,7 +256,6 @@ macro_rules! impl_from_number {
         })*
     );
 }
-
 impl_from_number!(u8, u16, u32, u64, usize, i8, i16, i32, i64, isize, f32, f64);
 
 impl<T> From<Vec<T>> for Prop
@@ -341,7 +353,7 @@ impl fmt::Debug for Prop {
             &Prop::Boolean(ref v) => write!(f, "{:?}", v),
             &Prop::Number(ref v) => write!(f, "{:?}", v),
             &Prop::String(ref v) => write!(f, "{:?}", v),
-            &Prop::Function(_) => write!(f, "Fn(&mut Event)"),
+            &Prop::Function(ref v) => write!(f, "{:?}", &*v),
             &Prop::Array(ref v) => write!(f, "{:?}", v),
             &Prop::Object(ref v) => write!(f, "{:?}", v),
         }
@@ -356,7 +368,7 @@ impl fmt::Display for Prop {
             &Prop::Boolean(ref v) => write!(f, "{}", v),
             &Prop::Number(ref v) => write!(f, "{}", v),
             &Prop::String(ref v) => write!(f, "{}", v),
-            &Prop::Function(_) => write!(f, "Fn(&mut Event)"),
+            &Prop::Function(ref v) => write!(f, "{:?}", &*v),
             &Prop::Array(ref array) => {
                 let il = array.len();
 
