@@ -67,7 +67,7 @@ impl Renderer {
     }
 
     #[inline]
-    pub fn processing(&self) -> bool {
+    fn processing(&self) -> bool {
         !self.0
             .processing
             .compare_and_swap(false, true, Ordering::SeqCst)

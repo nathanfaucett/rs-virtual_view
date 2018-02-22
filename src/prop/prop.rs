@@ -6,7 +6,7 @@ use fnv::FnvHashMap;
 use serde_json::{self, Map, Value};
 
 use super::super::Event;
-use super::{Array, Props};
+use super::{AnyFn, Array, Props};
 
 #[derive(Clone)]
 pub enum Prop {
@@ -23,7 +23,7 @@ unsafe impl Sync for Prop {}
 unsafe impl Send for Prop {}
 
 pub type Number = f64;
-pub type Function = Arc<Fn(&mut Event)>;
+pub type Function = Arc<AnyFn>;
 
 impl Prop {
     #[inline]
@@ -72,6 +72,21 @@ impl Prop {
     pub fn object(&self) -> Option<&Props> {
         match self {
             &Prop::Object(ref v) => Some(v),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    pub fn array_mut(&mut self) -> Option<&mut Array> {
+        match self {
+            &mut Prop::Array(ref mut v) => Some(v),
+            _ => None,
+        }
+    }
+    #[inline]
+    pub fn object_mut(&mut self) -> Option<&mut Props> {
+        match self {
+            &mut Prop::Object(ref mut v) => Some(v),
             _ => None,
         }
     }
@@ -175,6 +190,13 @@ impl Prop {
             _ => false,
         }
     }
+    #[inline]
+    pub fn call<A, R>(&self, args: A) -> Option<R> {
+        match self {
+            &Prop::Function(ref function) => function.call(args),
+            _ => None,
+        }
+    }
 }
 
 impl<'a> From<&'a Prop> for Prop {
@@ -271,7 +293,7 @@ where
 {
     #[inline]
     fn from(value: F) -> Self {
-        Prop::Function(Arc::new(value))
+        Prop::Function(Arc::new(AnyFn::new(value)))
     }
 }
 

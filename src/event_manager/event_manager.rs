@@ -3,7 +3,7 @@ use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use fnv::{FnvHashMap, FnvHashSet};
 
-use super::super::traverse_path;
+use super::super::{traverse_path, Function};
 use super::Event;
 
 #[derive(Clone)]
@@ -38,7 +38,7 @@ impl EventManager {
 
         for (id, func) in event_funcs {
             event.set_target_id(id);
-            (&*func)(event);
+            func.call::<(&mut Event,), ()>((event,));
 
             if !event.propagation() {
                 break;
@@ -66,7 +66,7 @@ impl fmt::Debug for EventManager {
     }
 }
 
-pub(crate) struct EventManagerInner(FnvHashMap<String, FnvHashMap<String, Arc<Fn(&mut Event)>>>);
+pub(crate) struct EventManagerInner(FnvHashMap<String, FnvHashMap<String, Function>>);
 
 impl EventManagerInner {
     #[inline]
@@ -74,7 +74,7 @@ impl EventManagerInner {
         EventManagerInner(FnvHashMap::default())
     }
     #[inline]
-    pub(crate) fn add(&mut self, id: &str, name: &str, func: Arc<Fn(&mut Event)>) {
+    pub(crate) fn add(&mut self, id: &str, name: &str, func: Function) {
         self.0
             .entry(name.into())
             .or_insert_with(FnvHashMap::default)
@@ -96,7 +96,7 @@ impl EventManagerInner {
     }
 
     #[inline]
-    pub fn event_funcs(&self, id: &str, event: &mut Event) -> Vec<(String, Arc<Fn(&mut Event)>)> {
+    pub fn event_funcs(&self, id: &str, event: &mut Event) -> Vec<(String, Function)> {
         let mut funcs = Vec::new();
 
         if let Some(events) = self.0.get(event.name()) {

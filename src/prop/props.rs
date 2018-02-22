@@ -40,6 +40,19 @@ impl Props {
     }
 
     #[inline]
+    pub fn remove(&mut self, key: &str) -> Option<Prop> {
+        self.0.remove(key)
+    }
+    #[inline]
+    pub fn delete(&mut self, key: &str) -> Prop {
+        if let Some(value) = self.0.remove(key) {
+            value
+        } else {
+            Prop::Null
+        }
+    }
+
+    #[inline]
     pub fn has(&self, key: &str) -> bool {
         if let Some(prop) = self.0.get(key) {
             prop != &Prop::Null
