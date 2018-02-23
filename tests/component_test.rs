@@ -4,9 +4,8 @@ extern crate virtual_view;
 
 use std::sync::mpsc::channel;
 
-use serde_json::Map;
-use virtual_view::{Children, Component, Event, EventManager, Instance, Props, Renderer,
-                   SimpleEvent, Updater, View};
+use virtual_view::{Children, Component, EventManager, Instance, Prop, Props, Renderer, Updater,
+                   View};
 
 struct Button;
 
@@ -24,7 +23,7 @@ impl Component for Button {
 struct Counter;
 
 impl Counter {
-    fn on_add_count(updater: &Updater) {
+    fn on_add_count(updater: &Updater) -> Prop {
         updater.set_state(|current| {
             let mut next = current.clone();
 
@@ -36,8 +35,9 @@ impl Counter {
 
             next
         });
+        Prop::Null
     }
-    fn on_sub_count(updater: &Updater) {
+    fn on_sub_count(updater: &Updater) -> Prop {
         updater.set_state(|current| {
             let mut next = current.clone();
 
@@ -49,6 +49,7 @@ impl Counter {
 
             next
         });
+        Prop::Null
     }
 }
 
@@ -67,13 +68,13 @@ impl Component for Counter {
                 <p>{format!("Count {}", instance.state.get("count"))}</p>
                 <{Button} onclick={ event {
                     let updater = instance.updater.clone();
-                    move |_: &mut Event| Counter::on_add_count(&updater)
+                    move |_: &mut Props| Counter::on_add_count(&updater)
                 } }>
                     {"Add"}
                 </{Button}>
                 <{Button} onclick={ event {
                     let updater = instance.updater.clone();
-                    move |_: &mut Event| Counter::on_sub_count(&updater)
+                    move |_: &mut Props| Counter::on_sub_count(&updater)
                 } }>
                     {"Sub"}
                 </{Button}>
@@ -95,9 +96,9 @@ fn test_component_transaction() {
         sender,
     );
 
-    event_manager.dispatch(".0.1", &mut SimpleEvent::new("onclick", Map::new()));
-    event_manager.dispatch(".0.2", &mut SimpleEvent::new("onclick", Map::new()));
-    event_manager.dispatch(".0.1", &mut SimpleEvent::new("onclick", Map::new()));
+    event_manager.dispatch(".0.1", &mut props! { "name": "onclick" });
+    event_manager.dispatch(".0.2", &mut props! { "name": "onclick" });
+    event_manager.dispatch(".0.1", &mut props! { "name": "onclick" });
 
     renderer.unmount();
 

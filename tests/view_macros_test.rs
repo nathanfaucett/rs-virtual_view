@@ -1,12 +1,13 @@
 #[macro_use]
 extern crate virtual_view;
 
-use virtual_view::Event;
+use virtual_view::{Prop, Props};
 
 #[test]
 fn test_view() {
-    let on_click = |e: &mut Event| {
+    let on_click = |e: &mut Props| -> Prop {
         let _ = e;
+        Prop::Null
     };
     let value = 0;
 
@@ -17,9 +18,10 @@ fn test_view() {
             style={{"color": "#fff"}}
             index={[0, 1, 2]}
             onclick=on_click
-            ondblclick={move |e: &mut Event| {
+            ondblclick={move |e: &mut Props| {
                 let _ = e;
                 let _ = value;
+                Prop::Null
             }}
             ... { props! { "data-id": 1 } }
         >

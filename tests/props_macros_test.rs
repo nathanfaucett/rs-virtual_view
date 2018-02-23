@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate virtual_view;
 
-use virtual_view::{Event, Prop, Props};
+use virtual_view::{Prop, Props};
 
 #[test]
 fn test_prop_null() {
@@ -44,14 +44,15 @@ fn test_prop_full() {
 
     let f = props! {
         "count": 0,
-        "onclick": move |e: &mut Event| {
+        "onclick": move |e: &mut Props| {
             let _ = copy;
             let _ = e;
+            Prop::Null
         },
         "array": [0, 1, 2]
     };
 
-    assert!(f.get("onclick").is_event());
+    assert!(f.get("onclick").is_function());
 }
 
 #[test]

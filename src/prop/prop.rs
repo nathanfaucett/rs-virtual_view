@@ -5,8 +5,7 @@ use std::hash::{Hash, Hasher};
 use fnv::FnvHashMap;
 use serde_json::{self, Map, Value};
 
-use super::super::{Event, Updater};
-use super::{Array, Number, Props};
+use super::{Array, Function, Number, Props};
 
 #[derive(Clone)]
 pub enum Prop {
@@ -14,8 +13,7 @@ pub enum Prop {
     Boolean(bool),
     Number(Number),
     String(String),
-    Event(Arc<Fn(&mut Event)>),
-    Updater(Updater),
+    Function(Arc<Function>),
     Array(Array),
     Object(Props),
 }
@@ -53,16 +51,9 @@ impl Prop {
         }
     }
     #[inline]
-    pub fn updater(&self) -> Option<&Updater> {
+    pub fn function(&self) -> Option<&Arc<Function>> {
         match self {
-            &Prop::Updater(ref v) => Some(v),
-            _ => None,
-        }
-    }
-    #[inline]
-    pub fn event(&self) -> Option<&Arc<Fn(&mut Event)>> {
-        match self {
-            &Prop::Event(ref v) => Some(v),
+            &Prop::Function(ref v) => Some(v),
             _ => None,
         }
     }
@@ -125,16 +116,9 @@ impl Prop {
         }
     }
     #[inline]
-    pub fn take_updater(self) -> Result<Updater, Self> {
+    pub fn take_function(self) -> Result<Arc<Function>, Self> {
         match self {
-            Prop::Updater(v) => Ok(v),
-            _ => Err(self),
-        }
-    }
-    #[inline]
-    pub fn take_event(self) -> Result<Arc<Fn(&mut Event)>, Self> {
-        match self {
-            Prop::Event(v) => Ok(v),
+            Prop::Function(v) => Ok(v),
             _ => Err(self),
         }
     }
@@ -182,16 +166,9 @@ impl Prop {
         }
     }
     #[inline]
-    pub fn is_updater(&self) -> bool {
+    pub fn is_function(&self) -> bool {
         match self {
-            &Prop::Updater(_) => true,
-            _ => false,
-        }
-    }
-    #[inline]
-    pub fn is_event(&self) -> bool {
-        match self {
-            &Prop::Event(_) => true,
+            &Prop::Function(_) => true,
             _ => false,
         }
     }
@@ -206,6 +183,38 @@ impl Prop {
     pub fn is_object(&self) -> bool {
         match self {
             &Prop::Object(_) => true,
+            _ => false,
+        }
+    }
+
+    #[inline]
+    pub fn is_truthy(&self) -> bool {
+        match self {
+            &Prop::Null => false,
+            &Prop::Boolean(ref v) => *v,
+            &Prop::Number(ref v) => v != &0.0,
+            &Prop::String(ref v) => !v.is_empty(),
+            &Prop::Function(_) => true,
+            &Prop::Array(ref v) => !v.is_empty(),
+            &Prop::Object(ref v) => !v.is_empty(),
+        }
+    }
+    #[inline]
+    pub fn is_falsey(&self) -> bool {
+        !self.is_truthy()
+    }
+
+    #[inline]
+    pub fn is_true(&self) -> bool {
+        match self {
+            &Prop::Boolean(ref v) => v == &true,
+            _ => false,
+        }
+    }
+    #[inline]
+    pub fn is_false(&self) -> bool {
+        match self {
+            &Prop::Boolean(ref v) => v == &false,
             _ => false,
         }
     }
@@ -291,27 +300,13 @@ impl From<Props> for Prop {
     }
 }
 
-impl From<Updater> for Prop {
-    #[inline]
-    fn from(updater: Updater) -> Self {
-        Prop::Updater(updater)
-    }
-}
-
-impl<'a> From<&'a Updater> for Prop {
-    #[inline]
-    fn from(updater: &'a Updater) -> Self {
-        Prop::Updater(updater.clone())
-    }
-}
-
 impl<F> From<F> for Prop
 where
-    F: 'static + Fn(&mut Event),
+    F: 'static + Fn(&mut Props) -> Prop,
 {
     #[inline]
     fn from(f: F) -> Self {
-        Prop::Event(Arc::new(f))
+        Prop::Function(Arc::new(f))
     }
 }
 
@@ -359,8 +354,7 @@ impl fmt::Debug for Prop {
             &Prop::Boolean(ref v) => write!(f, "{:?}", v),
             &Prop::Number(ref v) => write!(f, "{:?}", v),
             &Prop::String(ref v) => write!(f, "{:?}", v),
-            &Prop::Updater(ref v) => write!(f, "{:?}", v),
-            &Prop::Event(_) => write!(f, "Fn(&mut Event)"),
+            &Prop::Function(_) => write!(f, "Fn(&mut Props) -> Prop"),
             &Prop::Array(ref v) => write!(f, "{:?}", v),
             &Prop::Object(ref v) => write!(f, "{:?}", v),
         }
@@ -375,8 +369,7 @@ impl fmt::Display for Prop {
             &Prop::Boolean(ref v) => write!(f, "{}", v),
             &Prop::Number(ref v) => write!(f, "{}", v),
             &Prop::String(ref v) => write!(f, "{}", v),
-            &Prop::Updater(ref v) => write!(f, "{:?}", v),
-            &Prop::Event(_) => write!(f, "Fn(&mut Event)"),
+            &Prop::Function(_) => write!(f, "Fn(&mut Props) -> Prop"),
             &Prop::Array(ref array) => {
                 let il = array.len();
 
@@ -452,12 +445,8 @@ impl PartialEq for Prop {
                 &Prop::String(ref b) => a == b,
                 _ => false,
             },
-            &Prop::Updater(ref a) => match other {
-                &Prop::Updater(ref b) => a == b,
-                _ => false,
-            },
-            &Prop::Event(ref a) => match other {
-                &Prop::Event(ref b) => ptr::eq(&**a, &**b),
+            &Prop::Function(ref a) => match other {
+                &Prop::Function(ref b) => ptr::eq(&**a, &**b),
                 _ => false,
             },
             &Prop::Array(ref a) => match other {
@@ -509,8 +498,7 @@ impl Hash for Prop {
             &Prop::Boolean(ref v) => v.hash(state),
             &Prop::Number(ref v) => unsafe { mem::transmute::<f64, u64>(*v) }.hash(state),
             &Prop::String(ref v) => v.hash(state),
-            &Prop::Updater(ref v) => v.hash(state),
-            &Prop::Event(ref v) => (&**v as *const _ as *const usize as usize).hash(state),
+            &Prop::Function(ref v) => (&**v as *const _ as *const usize as usize).hash(state),
             &Prop::Array(ref a) => for v in a {
                 v.hash(state);
             },
@@ -529,8 +517,7 @@ pub fn prop_to_json(prop: &Prop) -> Value {
         &Prop::Boolean(ref v) => Value::Bool(*v),
         &Prop::Number(ref v) => Value::Number(serde_json::Number::from_f64(*v).unwrap()),
         &Prop::String(ref v) => Value::String(v.clone()),
-        &Prop::Updater(_) => Value::Null,
-        &Prop::Event(_) => Value::Null,
+        &Prop::Function(_) => Value::Null,
         &Prop::Array(ref v) => Value::Array(array_to_json(v)),
         &Prop::Object(ref v) => Value::Object(props_to_json(v)),
     }
@@ -548,8 +535,7 @@ pub fn array_to_json(array: &Array) -> Vec<Value> {
                 out.push(Value::Number(serde_json::Number::from_f64(*v).unwrap()))
             }
             &Prop::String(ref v) => out.push(Value::String(v.clone())),
-            &Prop::Updater(_) => (),
-            &Prop::Event(_) => (),
+            &Prop::Function(_) => (),
             &Prop::Array(ref v) => out.push(Value::Array(array_to_json(v))),
             &Prop::Object(ref v) => out.push(Value::Object(props_to_json(v))),
         }
@@ -579,8 +565,7 @@ pub fn props_to_json(props: &Props) -> Map<String, Value> {
             &Prop::String(ref v) => {
                 out.insert(k.clone(), Value::String(v.clone()));
             }
-            &Prop::Updater(_) => (),
-            &Prop::Event(_) => (),
+            &Prop::Function(_) => (),
             &Prop::Array(ref v) => {
                 out.insert(k.clone(), Value::Array(array_to_json(v)));
             }

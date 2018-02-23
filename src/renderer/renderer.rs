@@ -186,7 +186,7 @@ impl Renderer {
 
         for (k, v) in props {
             if k.starts_with("on") {
-                if let Some(f) = v.event() {
+                if let Some(f) = v.function() {
                     transaction.add_event(id, k);
                     event_manager.add(id, k, f.clone());
                 }
@@ -205,7 +205,7 @@ impl Renderer {
 
         for (k, v) in props {
             if k.starts_with("on") {
-                if let Some(_) = v.event() {
+                if let Some(_) = v.function() {
                     transaction.remove_event(id, k);
                     event_manager.remove(id, k);
                 }
@@ -225,7 +225,7 @@ impl Renderer {
 
         for (k, v) in next_props {
             if k.starts_with("on") {
-                if let Some(f) = v.event() {
+                if let Some(f) = v.function() {
                     if !prev_props.has(k) {
                         transaction.add_event(id, k);
                         event_manager.add(id, k, f.clone());
@@ -235,7 +235,7 @@ impl Renderer {
         }
         for (k, v) in prev_props {
             if k.starts_with("on") {
-                if let Some(_) = v.event() {
+                if let Some(_) = v.function() {
                     if !next_props.has(k) {
                         transaction.remove_event(id, k);
                         event_manager.remove(id, k);

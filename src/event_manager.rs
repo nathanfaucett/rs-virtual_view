@@ -3,8 +3,7 @@ use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use fnv::{FnvHashMap, FnvHashSet};
 
-use super::super::traverse_path;
-use super::Event;
+use super::{traverse_path, Function, Props};
 
 #[derive(Clone)]
 pub struct EventManager(Arc<RwLock<EventManagerInner>>);
@@ -33,15 +32,15 @@ impl EventManager {
     }
 
     #[inline]
-    pub fn dispatch(&self, id: &str, event: &mut Event) {
+    pub fn dispatch(&self, id: &str, event: &mut Props) {
         let event_funcs = self.read().event_funcs(id, event);
 
         for (id, func) in event_funcs {
-            event.set_target_id(id);
+            event.set("component_id", id);
 
             (&*func)(event);
 
-            if !event.propagation() {
+            if event.get("propagation").is_false() {
                 break;
             }
         }
@@ -67,7 +66,7 @@ impl fmt::Debug for EventManager {
     }
 }
 
-pub(crate) struct EventManagerInner(FnvHashMap<String, FnvHashMap<String, Arc<Fn(&mut Event)>>>);
+pub(crate) struct EventManagerInner(FnvHashMap<String, FnvHashMap<String, Arc<Function>>>);
 
 impl EventManagerInner {
     #[inline]
@@ -75,7 +74,7 @@ impl EventManagerInner {
         EventManagerInner(FnvHashMap::default())
     }
     #[inline]
-    pub(crate) fn add(&mut self, id: &str, name: &str, func: Arc<Fn(&mut Event)>) {
+    pub(crate) fn add(&mut self, id: &str, name: &str, func: Arc<Function>) {
         self.0
             .entry(name.into())
             .or_insert_with(FnvHashMap::default)
@@ -97,16 +96,18 @@ impl EventManagerInner {
     }
 
     #[inline]
-    pub fn event_funcs(&self, id: &str, event: &mut Event) -> Vec<(String, Arc<Fn(&mut Event)>)> {
+    pub fn event_funcs(&self, id: &str, event: &mut Props) -> Vec<(String, Arc<Function>)> {
         let mut funcs = Vec::new();
 
-        if let Some(events) = self.0.get(event.name()) {
-            traverse_path(id, "", false, true, |id, _| {
-                if let Some(func) = events.get(id) {
-                    funcs.push((id.to_owned(), func.clone()));
-                }
-                true
-            });
+        if let Some(name) = event.get("name").string() {
+            if let Some(events) = self.0.get(name) {
+                traverse_path(id, "", false, true, |id, _| {
+                    if let Some(func) = events.get(id) {
+                        funcs.push((id.to_owned(), func.clone()));
+                    }
+                    true
+                });
+            }
         }
 
         funcs
