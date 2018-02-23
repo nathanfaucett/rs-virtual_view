@@ -1,4 +1,4 @@
-use super::super::{Event, Props};
+use super::super::Props;
 use super::Updater;
 
 pub struct Instance {
@@ -28,15 +28,6 @@ impl Instance {
     #[inline(always)]
     pub fn updater(&self) -> &Updater {
         &self.updater
-    }
-
-    #[inline]
-    pub fn wrap<F>(&self, f: F) -> impl Fn(&mut Event)
-    where
-        F: 'static + Fn(&Updater, &mut Event),
-    {
-        let updater = self.updater.clone();
-        move |e| f(&updater, e)
     }
 
     #[inline]

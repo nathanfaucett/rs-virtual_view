@@ -8,6 +8,8 @@ pub fn diff_props(prev: &Prop, next: &Prop) -> Prop {
                 Some(object) => Prop::Object(object),
                 None => Prop::Null,
             },
+            &Prop::Updater(_) => Prop::Null,
+            &Prop::Event(_) => Prop::Null,
             _ => next.clone(),
         },
         _ => next.clone(),
@@ -23,7 +25,8 @@ pub fn diff_props_object(prev_object: &Props, next_object: &Props) -> Option<Pro
             &Prop::Null => {
                 result.insert(key.clone(), Prop::Null);
             }
-            &Prop::Function(_) => (),
+            &Prop::Updater(_) => (),
+            &Prop::Event(_) => (),
             next_value => if prev_value != next_value {
                 result.insert(key.clone(), diff_props(prev_value, next_value));
             },

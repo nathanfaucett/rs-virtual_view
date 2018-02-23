@@ -1,4 +1,6 @@
+use std::fmt;
 use std::sync::Arc;
+use std::hash::{Hash, Hasher};
 
 use super::super::Props;
 use super::Renderer;
@@ -36,5 +38,37 @@ impl Updater {
     #[inline]
     pub fn force_update(&self) {
         self.set_state(Clone::clone);
+    }
+}
+
+impl PartialEq for Updater {
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        self.0.id == other.0.id && self.0.depth == other.0.depth
+    }
+}
+
+impl Hash for Updater {
+    #[inline]
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: Hasher,
+    {
+        self.0.id.hash(state);
+        self.0.depth.hash(state);
+    }
+}
+
+impl fmt::Debug for Updater {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Updater({}, {})", self.0.id, self.0.depth)
+    }
+}
+
+impl fmt::Display for Updater {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Updater({}, {})", self.0.id, self.0.depth)
     }
 }

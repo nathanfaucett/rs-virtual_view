@@ -200,11 +200,11 @@ macro_rules! prop_internal {
 
     (| $($tt:tt)+ | $body:expr) => ({
         let f = | $($tt)+ | $body;
-        Into::<$crate::Prop>::into(f)
+        $crate::Prop::new_event(f)
     });
     (move | $($tt:tt)+ | $body:expr) => ({
         let f = move | $($tt)+ | $body;
-        Into::<$crate::Prop>::into(f)
+        $crate::Prop::new_event(f)
     });
 
     ($other:expr) => (

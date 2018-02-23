@@ -51,7 +51,7 @@ fn test_prop_full() {
         "array": [0, 1, 2]
     };
 
-    assert!(f.get("onclick").is_function());
+    assert!(f.get("onclick").is_event());
 }
 
 #[test]

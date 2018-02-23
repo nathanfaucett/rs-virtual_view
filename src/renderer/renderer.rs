@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use super::super::{Event, EventManager, Props, Transaction, View};
+use super::super::{EventManager, Props, Transaction, View};
 use super::{Handler, Message, Node, Nodes, Queue};
 
 static ROOT_ID: AtomicUsize = AtomicUsize::new(0);
@@ -186,13 +186,7 @@ impl Renderer {
 
         for (k, v) in props {
             if k.starts_with("on") {
-                if let Some(f) = v.function() {
-                    assert!(
-                        f.is::<(&mut Event,), ()>(),
-                        "event {:?} passed {:?} Fn(&mut Event)",
-                        k,
-                        f
-                    );
+                if let Some(f) = v.event() {
                     transaction.add_event(id, k);
                     event_manager.add(id, k, f.clone());
                 }
@@ -211,7 +205,7 @@ impl Renderer {
 
         for (k, v) in props {
             if k.starts_with("on") {
-                if let Some(_) = v.function() {
+                if let Some(_) = v.event() {
                     transaction.remove_event(id, k);
                     event_manager.remove(id, k);
                 }
@@ -231,14 +225,8 @@ impl Renderer {
 
         for (k, v) in next_props {
             if k.starts_with("on") {
-                if let Some(f) = v.function() {
+                if let Some(f) = v.event() {
                     if !prev_props.has(k) {
-                        assert!(
-                            f.is::<(&mut Event,), ()>(),
-                            "event {:?} passed {:?} Fn(&mut Event)",
-                            k,
-                            f
-                        );
                         transaction.add_event(id, k);
                         event_manager.add(id, k, f.clone());
                     }
@@ -247,7 +235,7 @@ impl Renderer {
         }
         for (k, v) in prev_props {
             if k.starts_with("on") {
-                if let Some(_) = v.function() {
+                if let Some(_) = v.event() {
                     if !next_props.has(k) {
                         transaction.remove_event(id, k);
                         event_manager.remove(id, k);

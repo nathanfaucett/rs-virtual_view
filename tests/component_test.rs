@@ -65,13 +65,13 @@ impl Component for Counter {
         view! {
             <div class="Counter">
                 <p>{format!("Count {}", instance.state.get("count"))}</p>
-                <{Button} onclick={ closure {
+                <{Button} onclick={ event {
                     let updater = instance.updater.clone();
                     move |_: &mut Event| Counter::on_add_count(&updater)
                 } }>
                     {"Add"}
                 </{Button}>
-                <{Button} onclick={ closure {
+                <{Button} onclick={ event {
                     let updater = instance.updater.clone();
                     move |_: &mut Event| Counter::on_sub_count(&updater)
                 } }>
