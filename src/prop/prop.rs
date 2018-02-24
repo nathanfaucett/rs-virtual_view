@@ -188,6 +188,14 @@ impl Prop {
     }
 
     #[inline]
+    pub fn call(&self, e: &mut Props) -> Option<Prop> {
+        match self {
+            &Prop::Function(ref f) => Some((&**f)(e)),
+            _ => None,
+        }
+    }
+
+    #[inline]
     pub fn is_truthy(&self) -> bool {
         match self {
             &Prop::Null => false,
@@ -217,6 +225,11 @@ impl Prop {
             &Prop::Boolean(ref v) => v == &false,
             _ => false,
         }
+    }
+
+    #[inline]
+    pub fn to_json(&self) -> Value {
+        prop_to_json(self)
     }
 }
 

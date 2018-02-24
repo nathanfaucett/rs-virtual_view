@@ -2,7 +2,9 @@ use std::ops::{Deref, DerefMut};
 use std::hash::{Hash, Hasher};
 use std::iter::FromIterator;
 
-use super::Prop;
+use serde_json::Value;
+
+use super::{array_to_json, Prop};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Array(Vec<Prop>);
@@ -26,6 +28,11 @@ impl Array {
         T: Into<Prop>,
     {
         self.0.push(value.into())
+    }
+
+    #[inline]
+    pub fn to_json(&self) -> Value {
+        Value::Array(array_to_json(self))
     }
 }
 

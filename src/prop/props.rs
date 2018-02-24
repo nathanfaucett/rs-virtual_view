@@ -98,6 +98,11 @@ impl Props {
         self.0.get_mut(key).map(f);
         self
     }
+
+    #[inline]
+    pub fn to_json(&self) -> Value {
+        Value::Object(props_to_json(self))
+    }
 }
 
 impl<'a> Index<&'a str> for Props {
@@ -177,7 +182,7 @@ where
     K: Eq + Hash + ToString,
     V: Into<Prop>,
 {
-    #[inline(always)]
+    #[inline]
     fn from(map: FnvHashMap<K, V>) -> Self {
         let mut m = Props::new();
         for (k, v) in map {
@@ -192,7 +197,7 @@ where
     K: Eq + Hash + ToString,
     V: Into<Prop>,
 {
-    #[inline(always)]
+    #[inline]
     fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
         let mut m = Props::new();
         for (k, v) in iter {
