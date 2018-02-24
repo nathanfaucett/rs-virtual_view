@@ -10,24 +10,26 @@ extern crate virtual_view;
 
 use std::sync::mpsc::channel;
 
-use virtual_view::{Children, Component, EventManager, Instance, Props, Renderer,
-           Updater, View};
-use serde_json::Map;
+use virtual_view::{Children, Component, EventManager, Instance, Prop, Props, Renderer, Updater,
+                   View};
 
-struct MyButton;
+struct Button;
 
-impl Component for MyButton {
+impl Component for Button {
+    fn name(&self) -> &'static str {
+        "Button"
+    }
     fn render(&self, _: &Instance, props: &Props, children: &Children) -> View {
         view! {
-            <button class="Button" ... { props }>{ each children }</button>
+            <button class="Button" ...{ props }>{ each children }</button>
         }
     }
 }
 
-struct App;
+struct Counter;
 
-impl App {
-    fn on_add_count(updater: &Updater, _: &mut Event) {
+impl Counter {
+    fn on_add_count(updater: &Updater) -> Prop {
         updater.set_state(|current| {
             let mut next = current.clone();
 
@@ -39,8 +41,9 @@ impl App {
 
             next
         });
+        Prop::Null
     }
-    fn on_sub_count(updater: &Updater, _: &mut Event) {
+    fn on_sub_count(updater: &Updater) -> Prop {
         updater.set_state(|current| {
             let mut next = current.clone();
 
@@ -52,12 +55,13 @@ impl App {
 
             next
         });
+        Prop::Null
     }
 }
 
-impl Component for App {
+impl Component for Counter {
     fn name(&self) -> &'static str {
-        "App"
+        "Counter"
     }
     fn initial_state(&self, props: &Props) -> Props {
         props! {
@@ -66,14 +70,20 @@ impl Component for App {
     }
     fn render(&self, instance: &Instance, _: &Props, _: &Children) -> View {
         view! {
-            <div class="App">
+            <div class="Counter">
                 <p>{format!("Count {}", instance.state.get("count"))}</p>
-                <{MyButton} onclick={ instance.wrap(App::on_add_count) }>
+                <{Button} onclick={ block {
+                    let updater = instance.updater.clone();
+                    move |_: &mut Props| Counter::on_add_count(&updater)
+                } }>
                     {"Add"}
-                </{MyButton}>
-                <{MyButton} onclick={ instance.wrap(App::on_sub_count) }>
+                </{Button}>
+                <{Button} onclick={ block {
+                    let updater = instance.updater.clone();
+                    move |_: &mut Props| Counter::on_sub_count(&updater)
+                } }>
                     {"Sub"}
-                </{MyButton}>
+                </{Button}>
             </div>
         }
     }
@@ -83,19 +93,15 @@ fn main() {
     let (sender, receiver) = channel();
 
     let event_manager = EventManager::new();
-    let renderer = Renderer::new(
+    let _renderer = Renderer::new(
         view! {
-            <{App} count=0/>
+            <{Counter} count=0/>
         },
         event_manager.clone(),
         sender,
     );
 
-    event_manager.dispatch(".0.1", &mut props! { "name": "onclick" });
-
     let mount_transaction = receiver.recv().unwrap();
-    println!("{:#?}", mount_transaction);
-
-    renderer.unmount();
+    println!("{:?}", mount_transaction);
 }
 ```
