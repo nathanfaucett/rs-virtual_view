@@ -10,7 +10,7 @@ extern crate virtual_view;
 
 use std::sync::mpsc::channel;
 
-use virtual_view::{Children, Component, Event, EventManager, Instance, Props, Renderer, SimpleEvent,
+use virtual_view::{Children, Component, EventManager, Instance, Props, Renderer,
            Updater, View};
 use serde_json::Map;
 
@@ -91,7 +91,7 @@ fn main() {
         sender,
     );
 
-    event_manager.dispatch(".0.1", &mut SimpleEvent::new("onclick", Map::new()));
+    event_manager.dispatch(".0.1", &mut props! { "name": "onclick" });
 
     let mount_transaction = receiver.recv().unwrap();
     println!("{:#?}", mount_transaction);

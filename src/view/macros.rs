@@ -174,9 +174,6 @@ macro_rules! view_internal {
     ($stack:ident (($key:expr) {[ $($array:tt)* ]} $($tail:tt)*)) => (
         view_internal! { $stack (($key) ( prop!([ $($array)* ]) ) $($tail)*) }
     );
-    ($stack:ident (($key:expr) { event $value:expr } $($tail:tt)*)) => (
-        view_internal! { $stack (($key) ($value) $($tail)*) }
-    );
     ($stack:ident (($key:expr) { block $value:expr } $($tail:tt)*)) => (
         view_internal! { $stack (($key) ($value) $($tail)*) }
     );

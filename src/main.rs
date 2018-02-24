@@ -1,4 +1,3 @@
-extern crate serde_json;
 #[macro_use]
 extern crate virtual_view;
 
@@ -7,22 +6,19 @@ use std::sync::mpsc::channel;
 use virtual_view::{Children, Component, EventManager, Instance, Prop, Props, Renderer, Updater,
                    View};
 
-struct Button;
+struct MyButton;
 
-impl Component for Button {
-    fn name(&self) -> &'static str {
-        "Button"
-    }
+impl Component for MyButton {
     fn render(&self, _: &Instance, props: &Props, children: &Children) -> View {
         view! {
-            <button class="Button" ...{ props }>{ each children }</button>
+            <button class="Button" ... { props }>{ each children }</button>
         }
     }
 }
 
-struct Counter;
+struct App;
 
-impl Counter {
+impl App {
     fn on_add_count(updater: &Updater) -> Prop {
         updater.set_state(|current| {
             let mut next = current.clone();
@@ -53,9 +49,9 @@ impl Counter {
     }
 }
 
-impl Component for Counter {
+impl Component for App {
     fn name(&self) -> &'static str {
-        "Counter"
+        "App"
     }
     fn initial_state(&self, props: &Props) -> Props {
         props! {
@@ -64,53 +60,41 @@ impl Component for Counter {
     }
     fn render(&self, instance: &Instance, _: &Props, _: &Children) -> View {
         view! {
-            <div class="Counter">
+            <div class="App">
                 <p>{format!("Count {}", instance.state.get("count"))}</p>
-                <{Button} onclick={ block {
+                <{MyButton} onclick={ block {
                     let updater = instance.updater.clone();
-                    move |_: &mut Props| Counter::on_add_count(&updater)
+                    move |_: &mut Props| App::on_add_count(&updater)
                 } }>
                     {"Add"}
-                </{Button}>
-                <{Button} onclick={ block {
+                </{MyButton}>
+                <{MyButton} onclick={ block {
                     let updater = instance.updater.clone();
-                    move |_: &mut Props| Counter::on_sub_count(&updater)
+                    move |_: &mut Props| App::on_sub_count(&updater)
                 } }>
                     {"Sub"}
-                </{Button}>
+                </{MyButton}>
             </div>
         }
     }
 }
 
-#[test]
-fn test_component_transaction() {
+fn main() {
     let (sender, receiver) = channel();
 
     let event_manager = EventManager::new();
     let renderer = Renderer::new(
         view! {
-            <{Counter} count=0/>
+            <{App} count=0/>
         },
         event_manager.clone(),
         sender,
     );
 
     event_manager.dispatch(".0.1", &mut props! { "name": "onclick" });
-    event_manager.dispatch(".0.2", &mut props! { "name": "onclick" });
-    event_manager.dispatch(".0.1", &mut props! { "name": "onclick" });
-
-    renderer.unmount();
 
     let mount_transaction = receiver.recv().unwrap();
-    let add0_update_transaction = receiver.recv().unwrap();
-    let sub_update_transaction = receiver.recv().unwrap();
-    let add1_update_transaction = receiver.recv().unwrap();
-    let unmount_transaction = receiver.recv().unwrap();
+    println!("{:#?}", mount_transaction);
 
-    assert!(&mount_transaction.patches()[".0"][0].is_mount());
-    assert!(&add0_update_transaction.patches()[".0.0.0"][0].is_replace());
-    assert!(&sub_update_transaction.patches()[".0.0.0"][0].is_replace());
-    assert!(&add1_update_transaction.patches()[".0.0.0"][0].is_replace());
-    assert!(&unmount_transaction.removes().contains_key(".0"));
+    renderer.unmount();
 }
