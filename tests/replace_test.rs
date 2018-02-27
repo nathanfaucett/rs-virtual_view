@@ -1,9 +1,13 @@
+extern crate messenger;
 extern crate serde_json;
+extern crate tokio;
 #[macro_use]
 extern crate virtual_view;
 
-use std::sync::mpsc::channel;
+use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
+use tokio::executor::current_thread;
 use virtual_view::{Children, Component, EventManager, Instance, Props, Renderer, View};
 
 struct Comp0;
@@ -85,7 +89,7 @@ impl Component for TopComp {
 
 #[test]
 fn test_replace_component_transaction() {
-    let (sender, receiver) = channel();
+    let (server, client, future) = messenger::unbounded_channel();
 
     let event_manager = EventManager::new();
     let _renderer = Renderer::new(
@@ -93,11 +97,30 @@ fn test_replace_component_transaction() {
             <{TopComp}/>
         },
         event_manager.clone(),
-        sender,
+        server,
     );
 
-    let _mount_transaction = receiver.recv().unwrap();
-    let switch_transaction = receiver.recv().unwrap();
+    let close_client = client.clone();
+    let transactions = Arc::new(Mutex::new(Vec::new()));
+    let client_transactions = transactions.clone();
+    let count = AtomicUsize::new(0);
+
+    let _ = client.on("virtual_view.transaction", move |t| {
+        if count.fetch_add(1, Ordering::SeqCst) == 1 {
+            close_client.close();
+        }
+        client_transactions.lock().unwrap().push(t.clone());
+        None
+    });
+
+    current_thread::run(|_| {
+        let _ = current_thread::spawn(future);
+    });
+
+    let mut transactions_lock = transactions.lock().unwrap();
+
+    let _mount_transaction = transactions_lock.remove(0);
+    let switch_transaction = transactions_lock.remove(0);
 
     assert!(switch_transaction.patches()[".0.0"][0].is_replace());
 }

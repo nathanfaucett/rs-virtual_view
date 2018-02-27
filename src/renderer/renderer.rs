@@ -1,16 +1,18 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
+use messenger::Messenger;
+
 use super::super::{EventManager, Props, Transaction, View};
-use super::{Handler, Message, Node, Nodes, Queue};
+use super::{Message, Node, Nodes, Queue};
 
 static ROOT_ID: AtomicUsize = AtomicUsize::new(0);
 
 pub struct RendererInner {
     root_id: String,
     root_index: usize,
-    handler: Box<Handler>,
     nodes: Nodes,
+    messenger: Messenger<Transaction>,
     event_manager: EventManager,
     queue: Queue,
     processing: AtomicBool,
@@ -24,10 +26,7 @@ unsafe impl Sync for Renderer {}
 
 impl Renderer {
     #[inline]
-    pub fn new<H>(view: View, event_manager: EventManager, handler: H) -> Self
-    where
-        H: Handler,
-    {
+    pub fn new(view: View, event_manager: EventManager, messenger: Messenger<Transaction>) -> Self {
         let mut root_id = String::new();
         let root_index = ROOT_ID.fetch_add(1, Ordering::SeqCst);
 
@@ -37,8 +36,8 @@ impl Renderer {
         let renderer = Renderer(Arc::new(RendererInner {
             root_index: root_index,
             root_id: root_id,
-            handler: Box::new(handler),
             nodes: Nodes::new(),
+            messenger: messenger,
             event_manager: event_manager,
             queue: Queue::new(),
             processing: AtomicBool::new(false),
@@ -95,7 +94,9 @@ impl Renderer {
 
     #[inline(always)]
     fn handle_transaction(&self, transaction: Transaction) {
-        self.0.handler.handle(transaction);
+        let _ = self.0
+            .messenger
+            .send("virtual_view.transaction", transaction, |_| {});
     }
 
     #[inline]

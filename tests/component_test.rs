@@ -1,9 +1,13 @@
+extern crate messenger;
 extern crate serde_json;
+extern crate tokio;
 #[macro_use]
 extern crate virtual_view;
 
-use std::sync::mpsc::channel;
+use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
+use tokio::executor::current_thread;
 use virtual_view::{Children, Component, EventManager, Instance, Prop, Props, Renderer, Updater,
                    View};
 
@@ -85,7 +89,7 @@ impl Component for Counter {
 
 #[test]
 fn test_component_transaction() {
-    let (sender, receiver) = channel();
+    let (server, client, future) = messenger::unbounded_channel();
 
     let event_manager = EventManager::new();
     let renderer = Renderer::new(
@@ -93,8 +97,21 @@ fn test_component_transaction() {
             <{Counter} count=0/>
         },
         event_manager.clone(),
-        sender,
+        server,
     );
+
+    let close_client = client.clone();
+    let transactions = Arc::new(Mutex::new(Vec::new()));
+    let client_transactions = transactions.clone();
+    let count = AtomicUsize::new(0);
+
+    let _ = client.on("virtual_view.transaction", move |t| {
+        if count.fetch_add(1, Ordering::SeqCst) == 4 {
+            close_client.close();
+        }
+        client_transactions.lock().unwrap().push(t.clone());
+        None
+    });
 
     event_manager.dispatch(".0.1", &mut props! { "name": "onclick" });
     event_manager.dispatch(".0.2", &mut props! { "name": "onclick" });
@@ -102,11 +119,17 @@ fn test_component_transaction() {
 
     renderer.unmount();
 
-    let mount_transaction = receiver.recv().unwrap();
-    let add0_update_transaction = receiver.recv().unwrap();
-    let sub_update_transaction = receiver.recv().unwrap();
-    let add1_update_transaction = receiver.recv().unwrap();
-    let unmount_transaction = receiver.recv().unwrap();
+    current_thread::run(|_| {
+        let _ = current_thread::spawn(future);
+    });
+
+    let mut transactions_lock = transactions.lock().unwrap();
+
+    let mount_transaction = transactions_lock.remove(0);
+    let add0_update_transaction = transactions_lock.remove(0);
+    let sub_update_transaction = transactions_lock.remove(0);
+    let add1_update_transaction = transactions_lock.remove(0);
+    let unmount_transaction = transactions_lock.remove(0);
 
     assert!(&mount_transaction.patches()[".0"][0].is_mount());
     assert!(&add0_update_transaction.patches()[".0.0.0"][0].is_replace());

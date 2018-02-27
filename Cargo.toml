@@ -17,9 +17,11 @@ name = "virtual_view"
 path = "src/lib.rs"
 
 [dependencies]
+fnv = "1.0"
+messenger = { path = "../rs-messenger" }
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
-fnv = "1.0"
 
 [dev-dependencies]
+tokio = "0.1"
