@@ -7,8 +7,9 @@ extern crate virtual_view;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use serde_json::from_value;
 use tokio::executor::current_thread;
-use virtual_view::{Children, Component, EventManager, Instance, Props, Renderer, View};
+use virtual_view::{Children, Component, EventManager, Instance, Props, Renderer, Transaction, View};
 
 struct Comp0;
 
@@ -77,9 +78,9 @@ impl Component for TopComp {
             <div class="TopComp">
                 {
                     if instance.state.get("render").boolean().unwrap() {
-                        view! { <{Comp0}/> }
+                        view! { <{Comp0} key="Comp0"/> }
                     } else {
-                        view! { <{Comp1}/> }
+                        view! { <{Comp1} key="Comp1"/> }
                     }
                 }
             </div>
@@ -101,7 +102,7 @@ fn test_replace_component_transaction() {
     );
 
     let close_client = client.clone();
-    let transactions = Arc::new(Mutex::new(Vec::new()));
+    let transactions: Arc<Mutex<Vec<Transaction>>> = Arc::new(Mutex::new(Vec::new()));
     let client_transactions = transactions.clone();
     let count = AtomicUsize::new(0);
 
@@ -109,7 +110,10 @@ fn test_replace_component_transaction() {
         if count.fetch_add(1, Ordering::SeqCst) == 1 {
             close_client.close();
         }
-        client_transactions.lock().unwrap().push(t.clone());
+        client_transactions
+            .lock()
+            .unwrap()
+            .push(from_value(t.clone()).unwrap());
         None
     });
 
@@ -122,5 +126,6 @@ fn test_replace_component_transaction() {
     let _mount_transaction = transactions_lock.remove(0);
     let switch_transaction = transactions_lock.remove(0);
 
-    assert!(switch_transaction.patches()[".0.0"][0].is_replace());
+    assert!(switch_transaction.removes().contains_key(".0.Comp0"));
+    assert!(switch_transaction.patches()[".0"][0].is_insert());
 }

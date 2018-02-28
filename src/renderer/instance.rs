@@ -1,3 +1,5 @@
+use serde_json::Value;
+
 use super::super::Props;
 use super::Updater;
 
@@ -15,6 +17,25 @@ impl Instance {
             context: context,
             updater: updater,
         }
+    }
+
+    #[inline]
+    pub fn send<N, V, F>(&self, name: N, json: V, f: F)
+    where
+        N: Into<String>,
+        V: Into<Value>,
+        F: 'static + Fn(Value),
+    {
+        self.updater.send(name, json, f)
+    }
+
+    #[inline]
+    pub fn send_no_callback<N, V>(&self, name: N, json: V)
+    where
+        N: Into<String>,
+        V: Into<Value>,
+    {
+        self.updater.send_no_callback(name, json)
     }
 
     #[inline(always)]

@@ -2,6 +2,8 @@ use std::fmt;
 use std::sync::Arc;
 use std::hash::{Hash, Hasher};
 
+use serde_json::Value;
+
 use super::super::Props;
 use super::Renderer;
 
@@ -25,6 +27,44 @@ impl Updater {
             depth: depth,
             renderer: renderer,
         }))
+    }
+
+    #[inline]
+    fn set_json_id<V>(&self, json: V) -> Value
+    where
+        V: Into<Value>,
+    {
+        let mut props = json.into();
+
+        match &mut props {
+            &mut Value::Object(ref mut object) => {
+                object.insert("component_id".into(), self.0.id.clone().into());
+            }
+            _ => (),
+        }
+
+        props
+    }
+
+    #[inline]
+    pub fn send<N, V, F>(&self, name: N, json: V, f: F)
+    where
+        N: Into<String>,
+        V: Into<Value>,
+        F: 'static + Fn(Value),
+    {
+        self.0.renderer.send(name, self.set_json_id(json), f)
+    }
+
+    #[inline]
+    pub fn send_no_callback<N, V>(&self, name: N, json: V)
+    where
+        N: Into<String>,
+        V: Into<Value>,
+    {
+        self.0
+            .renderer
+            .send_no_callback(name, self.set_json_id(json))
     }
 
     #[inline]
@@ -69,6 +109,6 @@ impl fmt::Debug for Updater {
 impl fmt::Display for Updater {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Updater({}, {})", self.0.id, self.0.depth)
+        fmt::Debug::fmt(self, f)
     }
 }

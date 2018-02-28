@@ -4,12 +4,14 @@ rs-virtual_view
 a virtual view in rust
 
 ```rust
+extern crate messenger;
 extern crate serde_json;
+extern crate tokio;
 #[macro_use]
 extern crate virtual_view;
 
-use std::sync::mpsc::channel;
-
+use messenger::unbounded_channel;
+use tokio::executor::current_thread;
 use virtual_view::{Children, Component, EventManager, Instance, Prop, Props, Renderer, Updater,
                    View};
 
@@ -90,7 +92,7 @@ impl Component for Counter {
 }
 
 fn main() {
-    let (sender, receiver) = channel();
+    let (server, client, future) = unbounded_channel();
 
     let event_manager = EventManager::new();
     let _renderer = Renderer::new(
@@ -98,10 +100,18 @@ fn main() {
             <{Counter} count=0/>
         },
         event_manager.clone(),
-        sender,
+        server,
     );
 
-    let mount_transaction = receiver.recv().unwrap();
-    println!("{:?}", mount_transaction);
+    let c = client.clone();
+    let _ = client.on("virtual_view.transaction", move |t| {
+        println!("{}", t);
+        c.close();
+        None
+    });
+
+    current_thread::run(move |_| {
+        let _ = current_thread::spawn(future);
+    });
 }
 ```

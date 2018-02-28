@@ -101,6 +101,20 @@ impl View {
     }
 
     #[inline]
+    pub fn has_key(&self) -> bool {
+        match self {
+            &View::Text(_) => false,
+            &View::Data { ref key, .. } => key.is_some(),
+        }
+    }
+    #[inline]
+    pub fn clone_key(&self) -> Option<String> {
+        match self {
+            &View::Text(_) => None,
+            &View::Data { ref key, .. } => key.clone(),
+        }
+    }
+    #[inline]
     pub fn key(&self) -> Option<&String> {
         match self {
             &View::Text(_) => None,
@@ -109,9 +123,13 @@ impl View {
     }
     #[inline]
     pub fn set_key(&mut self, new_key: String) {
+        self.set_key_option(Some(new_key));
+    }
+    #[inline]
+    pub fn set_key_option(&mut self, new_key: Option<String>) {
         match self {
             &mut View::Text(_) => (),
-            &mut View::Data { ref mut key, .. } => *key = Some(new_key),
+            &mut View::Data { ref mut key, .. } => *key = new_key,
         }
     }
 

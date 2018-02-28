@@ -122,7 +122,13 @@ impl NodeInner {
         let props = view.props().unwrap_or(&empty_props);
         let children = view.children().unwrap_or(&empty_children);
 
-        component.render(instance, props, children)
+        let mut rendered_view = component.render(instance, props, children);
+
+        if !rendered_view.has_key() {
+            rendered_view.set_key_option(view.clone_key());
+        }
+
+        rendered_view
     }
 
     #[inline]

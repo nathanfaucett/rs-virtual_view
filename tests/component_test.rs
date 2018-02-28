@@ -7,9 +7,10 @@ extern crate virtual_view;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use serde_json::from_value;
 use tokio::executor::current_thread;
-use virtual_view::{Children, Component, EventManager, Instance, Prop, Props, Renderer, Updater,
-                   View};
+use virtual_view::{Children, Component, EventManager, Instance, Prop, Props, Renderer,
+                   Transaction, Updater, View};
 
 struct Button;
 
@@ -101,7 +102,7 @@ fn test_component_transaction() {
     );
 
     let close_client = client.clone();
-    let transactions = Arc::new(Mutex::new(Vec::new()));
+    let transactions: Arc<Mutex<Vec<Transaction>>> = Arc::new(Mutex::new(Vec::new()));
     let client_transactions = transactions.clone();
     let count = AtomicUsize::new(0);
 
@@ -109,7 +110,10 @@ fn test_component_transaction() {
         if count.fetch_add(1, Ordering::SeqCst) == 4 {
             close_client.close();
         }
-        client_transactions.lock().unwrap().push(t.clone());
+        client_transactions
+            .lock()
+            .unwrap()
+            .push(from_value(t.clone()).unwrap());
         None
     });
 

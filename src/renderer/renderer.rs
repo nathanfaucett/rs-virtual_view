@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
+use serde_json::{to_value, Map, Value};
 use messenger::Messenger;
 
 use super::super::{EventManager, Props, Transaction, View};
@@ -12,7 +13,7 @@ pub struct RendererInner {
     root_id: String,
     root_index: usize,
     nodes: Nodes,
-    messenger: Messenger<Transaction>,
+    messenger: Messenger<Value>,
     event_manager: EventManager,
     queue: Queue,
     processing: AtomicBool,
@@ -26,7 +27,7 @@ unsafe impl Sync for Renderer {}
 
 impl Renderer {
     #[inline]
-    pub fn new(view: View, event_manager: EventManager, messenger: Messenger<Transaction>) -> Self {
+    pub fn new(view: View, event_manager: EventManager, messenger: Messenger<Value>) -> Self {
         let mut root_id = String::new();
         let root_index = ROOT_ID.fetch_add(1, Ordering::SeqCst);
 
@@ -94,9 +95,37 @@ impl Renderer {
 
     #[inline(always)]
     fn handle_transaction(&self, transaction: Transaction) {
-        let _ = self.0
-            .messenger
-            .send("virtual_view.transaction", transaction, |_| {});
+        self.send_no_callback("virtual_view.transaction", to_value(transaction).unwrap());
+    }
+
+    #[inline]
+    pub fn send<N, V, F>(&self, name: N, json: V, f: F)
+    where
+        N: Into<String>,
+        V: Into<Value>,
+        F: 'static + Fn(Value),
+    {
+        let _ = self.0.messenger.send(name, json.into(), move |data| {
+            let mut json = Map::new();
+
+            for datum in data {
+                match datum {
+                    Value::Object(object) => json.extend(object),
+                    _ => (),
+                }
+            }
+
+            f(Value::Object(json))
+        });
+    }
+
+    #[inline]
+    pub fn send_no_callback<N, V>(&self, name: N, json: V)
+    where
+        N: Into<String>,
+        V: Into<Value>,
+    {
+        let _ = self.0.messenger.send_no_callback(name, json.into());
     }
 
     #[inline]
