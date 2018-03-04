@@ -1,7 +1,6 @@
-image: "scorpil/rust:nightly"
-
+image: "rustlang/rust:nightly"
 
 test:cargo:
   script:
   - rustc --version && cargo --version
-  - cargo test --verbose --jobs 1 --release
+  - cargo test --all --verbose
