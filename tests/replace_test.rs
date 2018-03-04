@@ -89,7 +89,7 @@ impl Component for TopComp {
 }
 
 #[test]
-fn test_replace_component_transaction() {
+fn test_replace() {
     let (server, client, future) = messenger::unbounded_channel();
 
     let event_manager = EventManager::new();

@@ -89,7 +89,7 @@ impl Component for Counter {
 }
 
 #[test]
-fn test_component_transaction() {
+fn test_component() {
     let (server, client, future) = messenger::unbounded_channel();
 
     let event_manager = EventManager::new();

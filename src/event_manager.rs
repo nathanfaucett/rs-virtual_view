@@ -96,7 +96,7 @@ impl EventManagerInner {
     }
 
     #[inline]
-    pub fn event_funcs(&self, id: &str, event: &mut Props) -> Vec<(String, Arc<Function>)> {
+    fn event_funcs(&self, id: &str, event: &mut Props) -> Vec<(String, Arc<Function>)> {
         let mut funcs = Vec::new();
 
         if let Some(name) = event.get("name").string() {

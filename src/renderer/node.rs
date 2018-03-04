@@ -1,3 +1,4 @@
+use std::ptr;
 use std::sync::Arc;
 use std::rc::Rc;
 use std::cell::{Ref, RefCell, RefMut};
@@ -389,6 +390,8 @@ impl NodeInner {
                         let empty_props = Props::new();
                         let prev_props = prev_view.props().unwrap_or(&empty_props);
 
+                        view_children.reserve(children_diff.next_len());
+
                         for (index, next_view_option) in children_diff.children.iter().enumerate() {
                             let prev_view_option = prev_children.get(index);
 
@@ -440,6 +443,8 @@ impl NodeInner {
                             }
                         }
 
+                        reorder_children(view_children, &children_diff.indices);
+
                         if let Some(diff_props) = diff_props_object(prev_props, next_props) {
                             transaction.props(&self.id, prev_props.into(), diff_props.into());
                         }
@@ -465,6 +470,24 @@ impl NodeInner {
             }
         }
     }
+}
+
+#[inline]
+fn reorder_children(children: &mut Vec<View>, indices: &Vec<usize>) {
+    let len = children.len();
+    let mut next_children = Vec::with_capacity(len);
+
+    unsafe {
+        next_children.set_len(len);
+    }
+
+    for (index, child) in children.drain(..).enumerate() {
+        unsafe {
+            ptr::write(next_children.get_unchecked_mut(indices[index]), child);
+        }
+    }
+
+    *children = next_children;
 }
 
 #[derive(Clone)]

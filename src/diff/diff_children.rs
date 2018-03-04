@@ -27,6 +27,7 @@ pub fn diff_children<'a>(prev_children: &'a [View], next_children: &'a [View]) -
                 if let Some(prev_item_key) = prev_item.key() {
                     if let Some(item_index) = next_indices.keys.get(prev_item_key) {
                         children.children.push(next_children.get(*item_index));
+                        children.indices.push(*item_index);
                     } else {
                         deleted_items += 1;
                         children.children.push(None);
@@ -36,6 +37,7 @@ pub fn diff_children<'a>(prev_children: &'a [View], next_children: &'a [View]) -
                         let item_index = next_indices.free[free_index];
                         free_index += 1;
                         children.children.push(next_children.get(item_index));
+                        children.indices.push(item_index);
                     } else {
                         deleted_items += 1;
                         children.children.push(None);
@@ -54,9 +56,11 @@ pub fn diff_children<'a>(prev_children: &'a [View], next_children: &'a [View]) -
                 if let Some(new_item_key) = new_item.key() {
                     if !prev_indices.keys.contains_key(new_item_key) {
                         children.children.push(Some(new_item));
+                        children.indices.push(j);
                     }
                 } else if j >= last_free_index {
                     children.children.push(Some(new_item));
+                    children.indices.push(j);
                 }
                 j += 1;
             }
@@ -86,7 +90,12 @@ pub fn diff_children<'a>(prev_children: &'a [View], next_children: &'a [View]) -
                                 children
                                     .removes
                                     .push((simulate_index, Some(simulate_item_key)));
-                                simulate_item = simulate[simulate_index];
+
+                                simulate_item = if let Some(child) = simulate.get(simulate_index) {
+                                    *child
+                                } else {
+                                    None
+                                };
 
                                 if simulate_item.is_none() || simulate_item_key != wanted_item_key {
                                     children.inserts.push((Some(wanted_item_key), k));
@@ -116,6 +125,7 @@ pub fn diff_children<'a>(prev_children: &'a [View], next_children: &'a [View]) -
 
             while simulate_index < simulate.len() {
                 let simulate_item = simulate[simulate_index];
+
                 simulate.remove(simulate_index);
                 children.removes.push((
                     simulate_index,
@@ -126,6 +136,8 @@ pub fn diff_children<'a>(prev_children: &'a [View], next_children: &'a [View]) -
                     },
                 ));
             }
+
+            children.next_len = next_children_len;
 
             if children.removes.len() == deleted_items && children.inserts.len() == 0 {
                 children.clear();
@@ -143,7 +155,9 @@ pub fn diff_children<'a>(prev_children: &'a [View], next_children: &'a [View]) -
 
 #[derive(Debug)]
 pub struct DiffChildren<'a> {
+    next_len: usize,
     pub children: Vec<Option<&'a View>>,
+    pub indices: Vec<usize>,
     pub removes: Vec<(usize, Option<&'a String>)>,
     pub inserts: Vec<(Option<&'a String>, usize)>,
 }
@@ -152,7 +166,9 @@ impl<'a> From<&'a [View]> for DiffChildren<'a> {
     #[inline]
     fn from(children: &'a [View]) -> Self {
         DiffChildren {
+            next_len: children.len(),
             children: children.iter().map(|v| Some(v)).collect(),
+            indices: children.iter().enumerate().map(|(i, _)| i).collect(),
             removes: Vec::new(),
             inserts: Vec::new(),
         }
@@ -163,10 +179,16 @@ impl<'a> DiffChildren<'a> {
     #[inline(always)]
     fn new() -> Self {
         DiffChildren {
+            next_len: 0,
             children: Vec::new(),
+            indices: Vec::new(),
             removes: Vec::new(),
             inserts: Vec::new(),
         }
+    }
+    #[inline]
+    pub fn next_len(&self) -> usize {
+        self.next_len
     }
     #[inline]
     fn clear(&mut self) {
