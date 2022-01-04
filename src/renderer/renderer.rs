@@ -1,8 +1,8 @@
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::Arc;
 
-use serde_json::{to_value, Map, Value};
 use messenger::Messenger;
+use serde_json::{to_value, Map, Value};
 
 use super::super::{EventManager, Props, Transaction, View};
 use super::{Message, Node, Nodes, Queue};
@@ -68,9 +68,10 @@ impl Renderer {
 
     #[inline]
     fn processing(&self) -> bool {
-        !self.0
+        self.0
             .processing
-            .compare_and_swap(false, true, Ordering::SeqCst)
+            .compare_exchange_weak(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok()
     }
     #[inline]
     fn finish_processing(&self) {
@@ -191,7 +192,7 @@ impl Renderer {
     }
 
     #[inline]
-    fn internal_update(&self, id: String, depth: usize, f: Box<Fn(&Props) -> Props + Send>) {
+    fn internal_update(&self, id: String, depth: usize, f: Box<dyn Fn(&Props) -> Props + Send>) {
         if let Some(node) = self.0.nodes.get_at_depth(id, depth) {
             let mut transaction = Transaction::new();
 

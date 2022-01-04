@@ -1,11 +1,11 @@
-use std::sync::{Arc, Mutex, MutexGuard};
 use std::collections::LinkedList;
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use super::super::{Props, View};
 
 pub enum Message {
     Mount(View),
-    Update(String, usize, Box<Fn(&Props) -> Props + Send>),
+    Update(String, usize, Box<dyn Fn(&Props) -> Props + Send>),
     Unmount,
 }
 

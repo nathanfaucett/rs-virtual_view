@@ -1,10 +1,12 @@
-use std::ptr;
-use std::sync::Arc;
-use std::rc::Rc;
 use std::cell::{Ref, RefCell, RefMut};
+use std::ptr;
+use std::rc::Rc;
+use std::sync::Arc;
 
-use super::super::{diff_children, diff_props_object, parent_id, view_id, Children, Component,
-                   Instance, Props, Transaction, Updater, View};
+use super::super::{
+    diff_children, diff_props_object, parent_id, view_id, Children, Component, Instance, Props,
+    Transaction, Updater, View,
+};
 use super::Renderer;
 
 pub enum NodeKind {
@@ -13,7 +15,7 @@ pub enum NodeKind {
         instance: Instance,
         node: Node,
         next_state: Option<Props>,
-        component: Arc<Component>,
+        component: Arc<dyn Component>,
     },
 }
 
@@ -116,7 +118,11 @@ impl NodeInner {
     }
 
     #[inline]
-    fn render_component_view(instance: &Instance, view: &View, component: &Arc<Component>) -> View {
+    fn render_component_view(
+        instance: &Instance,
+        view: &View,
+        component: &Arc<dyn Component>,
+    ) -> View {
         let empty_props = Props::new();
         let empty_children = Children::new();
 
@@ -156,20 +162,22 @@ impl NodeInner {
                 match &mut view {
                     &mut View::Data {
                         ref mut children, ..
-                    } => for (index, child) in children.iter_mut().enumerate() {
-                        if child.is_data() {
-                            let child_id = view_id(&self.id, child.key(), index);
-                            let node = Node::new(
-                                index,
-                                0,
-                                child_id,
-                                &self.renderer,
-                                child.clone(),
-                                &instance.context,
-                            );
-                            *child = node.mount(transaction);
+                    } => {
+                        for (index, child) in children.iter_mut().enumerate() {
+                            if child.is_data() {
+                                let child_id = view_id(&self.id, child.key(), index);
+                                let node = Node::new(
+                                    index,
+                                    0,
+                                    child_id,
+                                    &self.renderer,
+                                    child.clone(),
+                                    &instance.context,
+                                );
+                                *child = node.mount(transaction);
+                            }
                         }
-                    },
+                    }
                     _ => (),
                 }
 
@@ -184,20 +192,22 @@ impl NodeInner {
                 match &mut self.view {
                     &mut View::Data {
                         ref mut children, ..
-                    } => for (index, child) in children.iter_mut().enumerate() {
-                        if child.is_data() {
-                            let child_id = view_id(&self.id, child.key(), index);
-                            let node = Node::new(
-                                index,
-                                0,
-                                child_id,
-                                &self.renderer,
-                                child.clone(),
-                                &self.parent_context,
-                            );
-                            *child = node.mount(transaction);
+                    } => {
+                        for (index, child) in children.iter_mut().enumerate() {
+                            if child.is_data() {
+                                let child_id = view_id(&self.id, child.key(), index);
+                                let node = Node::new(
+                                    index,
+                                    0,
+                                    child_id,
+                                    &self.renderer,
+                                    child.clone(),
+                                    &self.parent_context,
+                                );
+                                *child = node.mount(transaction);
+                            }
                         }
-                    },
+                    }
                     _ => (),
                 }
 
@@ -222,13 +232,15 @@ impl NodeInner {
                 match &mut view {
                     &mut View::Data {
                         ref mut children, ..
-                    } => for (index, child) in children.iter_mut().enumerate() {
-                        let child_id = view_id(&self.id, child.key(), index);
+                    } => {
+                        for (index, child) in children.iter_mut().enumerate() {
+                            let child_id = view_id(&self.id, child.key(), index);
 
-                        if let Some(node) = self.renderer.nodes().get(child_id) {
-                            *child = node.unmount(transaction);
+                            if let Some(node) = self.renderer.nodes().get(child_id) {
+                                *child = node.unmount(transaction);
+                            }
                         }
-                    },
+                    }
                     _ => (),
                 }
 
@@ -243,13 +255,15 @@ impl NodeInner {
                 match &mut self.view {
                     &mut View::Data {
                         ref mut children, ..
-                    } => for (index, child) in children.iter_mut().enumerate() {
-                        let child_id = view_id(&self.id, child.key(), index);
+                    } => {
+                        for (index, child) in children.iter_mut().enumerate() {
+                            let child_id = view_id(&self.id, child.key(), index);
 
-                        if let Some(node) = self.renderer.nodes().get(child_id) {
-                            *child = node.unmount(transaction);
+                            if let Some(node) = self.renderer.nodes().get(child_id) {
+                                *child = node.unmount(transaction);
+                            }
                         }
-                    },
+                    }
                     _ => (),
                 }
 
@@ -381,7 +395,7 @@ impl NodeInner {
                         children: ref next_children,
                         ..
                     } => {
-                        let mut view_children = view.children_mut().unwrap();
+                        let view_children = view.children_mut().unwrap();
 
                         let empty_children = Children::new();
                         let prev_children = prev_view.children().unwrap_or(&empty_children);

@@ -67,9 +67,9 @@ pub trait Component: 'static + Any {
     }
 }
 
-impl PartialEq for Component {
+impl PartialEq for dyn Component {
     #[inline]
-    fn eq(&self, other: &Component) -> bool {
-        self.get_type_id() == other.get_type_id()
+    fn eq(&self, other: &dyn Component) -> bool {
+        self.type_id() == other.type_id()
     }
 }

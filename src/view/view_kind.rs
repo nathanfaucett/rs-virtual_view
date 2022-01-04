@@ -1,13 +1,13 @@
-use std::sync::Arc;
 use std::any::TypeId;
 use std::fmt;
+use std::sync::Arc;
 
 use super::Component;
 
 #[derive(Clone)]
 pub enum ViewKind {
     String(String),
-    Component(Arc<Component>),
+    Component(Arc<dyn Component>),
 }
 
 unsafe impl Sync for ViewKind {}
@@ -27,9 +27,9 @@ impl From<String> for ViewKind {
     }
 }
 
-impl From<Arc<Component>> for ViewKind {
+impl From<Arc<dyn Component>> for ViewKind {
     #[inline]
-    fn from(component: Arc<Component>) -> Self {
+    fn from(component: Arc<dyn Component>) -> Self {
         ViewKind::Component(component)
     }
 }
@@ -54,7 +54,7 @@ impl PartialEq for ViewKind {
             },
             &ViewKind::Component(ref a) => match other {
                 &ViewKind::String(_) => false,
-                &ViewKind::Component(ref b) => a.get_type_id() == b.get_type_id(),
+                &ViewKind::Component(ref b) => a.type_id() == b.type_id(),
             },
         }
     }
@@ -105,7 +105,7 @@ impl ViewKind {
     pub fn type_id(&self) -> TypeId {
         match self {
             &ViewKind::String(_) => TypeId::of::<String>(),
-            &ViewKind::Component(ref component) => (&**component).get_type_id(),
+            &ViewKind::Component(ref component) => (&**component).type_id(),
         }
     }
     #[inline]

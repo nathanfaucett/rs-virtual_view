@@ -93,7 +93,7 @@ impl View {
         }
     }
     #[inline]
-    pub fn component(&self) -> Option<&Arc<Component>> {
+    pub fn component(&self) -> Option<&Arc<dyn Component>> {
         match self.kind() {
             Some(&ViewKind::Component(ref component)) => Some(component),
             _ => None,
